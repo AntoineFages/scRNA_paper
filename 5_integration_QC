@@ -1,0 +1,26 @@
+#!/usr/bin/env Rscript
+#Script 5. R script for integration of Seurat object across species
+
+library(Seurat)
+library(ggplot2)
+library(dplyr)
+library(scales)
+library(gridExtra)
+library(MAST)
+library(ips)
+library(future)
+library(viridis)
+library(speckle)
+library(patchwork)
+library(cowplot)
+library(gridGraphics)
+library(limma)
+
+path_to_output_of_integration <- 'XXX' #path to put the output of integration
+
+#Read Seurat object
+my.se <- readRDS(paste0(path_to_output_of_integration,'integrated_dataset.rds'))
+
+
+
+
