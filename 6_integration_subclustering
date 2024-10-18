@@ -10,8 +10,26 @@ path_to_output_of_integration <- 'XXX' #path to put the output of integration
 
 #Read Seurat object
 my.se <- readRDS(paste0(path_to_output_of_integration,'integrated_dataset.rds'))
+Idents(my.se)<-my.se$CellGroups
 
 #Subclustering in absorptive epithelial cells
 enterocytes <- subset(my.se,idents=c('absorptive epithelial cells'))
+DefaultAssay(enterocytes)<-'integrated'
+enterocytes <- RunPCA(enterocytes,npcs = 50)
+enterocytes <- FindNeighbors(enterocytes)
+enterocytes <- FindClusters(enterocytes,resolution=0.2)
+enterocytes <- RunUMAP(enterocytes,dims=1:50)
+DimPlot(enterocytes,label=T)
 
-#Do the subclustering
+ent1<-WhichCells(enterocytes,idents=c('0','1','2','6'))
+ent2<-WhichCells(enterocytes,idents=c('3'))
+LRE<-WhichCells(enterocytes,idents=c('4'))
+B4<-WhichCells(enterocytes,idents=c('5'))
+
+my.se<-SetIdent(my.se,cells =ent1,value = 'enterocytes 1')
+my.se<-SetIdent(my.se,cells =ent2,value = 'enterocytes 2')
+my.se<-SetIdent(my.se,cells =LRE,value = 'LREs')
+my.se<-SetIdent(my.se,cells =LRE,value = 'BEST4 cells')
+
+#Subclustering in non-absorptive epithelial cells
+secretory<-subset(my.se,idents=c('non-absorptive epithelial cells'))
