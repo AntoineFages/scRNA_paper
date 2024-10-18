@@ -1,1 +1,9 @@
+#!/usr/bin/env Rscript
+#Script 6. R script for identifying cell populations within cell type categories
 
+library(Seurat)
+
+path_to_output_of_integration <- 'XXX' #path to put the output of integration
+
+#Read Seurat object
+my.se <- readRDS(paste0(path_to_output_of_integration,'integrated_dataset.rds'))
