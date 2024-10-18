@@ -13,6 +13,9 @@ library(ddqcR)
 #path to output of QC
 path_to_output_of_qc <- 'XXX'
 
+#path to output of clustering
+path_to_output_of_clustering <- 'XXX'
+
 #Load the genome annotation (gtf gile)
 gtf <- rtracklayer::import('XXX') #path to gtf file
 
@@ -27,4 +30,41 @@ list_of_samples<-readLines('XXX') #path to the list of samples
 for (i in list_of_samples){
 
   #load Seurat object
-  my.se <- readRDS(paste0(path_to_output_of_qc,my.samplename,"_filteredUMIs_strict.rds"))
+  my.se <- readRDS(paste0(path_to_output_of_qc,i,"_filteredUMIs_strict.rds"))
+
+  #get ribosomal fraction
+  my.se <- initialQC(my.se)
+
+  #get mitochondrial fraction
+  mt_gtf <- gtf[gtf@seqnames == "NC_013663.1" & mcols(gtf)$type == "gene"]
+  mt_df <- data.frame(IDs = mcols(mt_gtf)$gene_id, names =  mcols(mt_gtf)$gene)
+  my.se[["percent.mt"]] <- PercentageFeatureSet(my.se, features = mt_df$IDs)
+
+  ##### Clustering #####
+  #SCTransform
+  my.se <- SCTransform(my.se, vars.to.regress = c("percent.mt","percent.rb","nCount_RNA"), verbose = FALSE, return.only.var.genes = F)
+  my.se <- RunPCA(my.se, assay = "SCT", verbose = F)
+
+  #set number of dimensions
+  dims <- c(1:30)
+
+  #Clustering
+  my.se <- FindNeighbors(object = my.se, dims=dims, verbose = F) #Find nearest neighbors
+  my.se <- FindClusters(object = my.se, resolution = 1, verbose = F, random.seed = 42) #Find clusters with resolution of 1  
+  my.se <- RunUMAP(my.se, dims = dims) #Run UMAP
+
+  #Save Seurat object
+  saveRDS(my.se, file= paste0(path_to_output_of_clustering,i,"_Clusters.rds"))
+
+}
+
+
+
+
+
+
+
+
+
+
+
