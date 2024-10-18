@@ -1,1 +1,13 @@
+#!/usr/bin/env Rscript
+#Script 4. R script for integration of Seurat object across species
+
+library(Seurat)
+library(dplyr)
+library(scales)
+library(gridExtra)
+library(MAST)
+library(ips)
+library(future)
+
+
 
