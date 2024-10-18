@@ -10,4 +10,21 @@ library(MAST)
 library(ips)
 library(ddqcR)
 
+#path to output of QC
+path_to_output_of_qc <- 'XXX'
 
+#Load the genome annotation (gtf gile)
+gtf <- rtracklayer::import('XXX') #path to gtf file
+
+#Extract mt genes
+mt_gtf <- gtf[gtf@seqnames == "NC_013663.1" & mcols(gtf)$type == "gene"]
+
+#Create data frame with mt IDs and Names
+mt_df <- data.frame(IDs = mcols(mt_gtf)$gene_id, names =  mcols(mt_gtf)$gene)
+
+#Loop through all samples
+list_of_samples<-readLines('XXX') #path to the list of samples
+for (i in list_of_samples){
+
+  #load Seurat object
+  my.se <- readRDS(paste0(path_to_output_of_qc,my.samplename,"_filteredUMIs.rds"))
