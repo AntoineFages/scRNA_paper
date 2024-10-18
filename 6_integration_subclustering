@@ -2,8 +2,16 @@
 #Script 6. R script for identifying cell populations within cell type categories
 
 library(Seurat)
+library(scibet)
+library(dplyr)
+library(tibble)
 
 path_to_output_of_integration <- 'XXX' #path to put the output of integration
 
 #Read Seurat object
 my.se <- readRDS(paste0(path_to_output_of_integration,'integrated_dataset.rds'))
+
+#Subclustering in absorptive epithelial cells
+enterocytes <- subset(my.se,idents=c('absorptive epithelial cells'))
+
+#Do the subclustering
