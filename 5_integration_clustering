@@ -51,4 +51,6 @@ my.se<-SetIdent(my.se,cells =enterocytes,value = 'cycling cells ')
 
 my.se$CellGroups <- Idents(my.se)
 
+#Save Seurat object
+my.se <- saveRDS(my.se, file = paste0(path_to_output_of_integration,'integrated_dataset.rds'))
 
