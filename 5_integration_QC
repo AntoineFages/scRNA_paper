@@ -31,9 +31,23 @@ mrk_names<-c("epcam","amcase-1","fabp2","tmigd1","amcase-2","cathepsin L1","cubn
 DotPlot(my.se,features=mrk) + scale_x_discrete(labels=rev(mrk_names)
 
 #Assign clusters to cell type categories
-epithelium <- WhichCells(my.se,idents=c('2','4','5','8','9','15','16','23','28','33','39','43','46','48',))
-#secretory_cells
-#Tcells
-#Bcells
-#monocytes
+enterocytes <- WhichCells(my.se,idents=c('2','4','5','8','9','15','16','23','28','31','33','39','43','46','52'))
+secretory_cells <- WhichCells(my.se,idents=c('32','37','40','41','48','51','53','54'))
+monocytes <- WhichCells(my.se,idents=c('14','17','21','27','47','50','55','58','59','60'))
+T_cells <- WhichCells(my.se,idents=c('0','1','3','6','7','10','11','13','19','22','24','25','26','29','30','34','42','44','45','49','57'))
+B_cells <- WhichCells(my.se,idents=c('18','20','38')
+mesenchymal_cells <- WhichCells(my.se,idents=c('12','56')
+cycling_cells <- WhichCells(my.se,idents=c('35')
+red_blood_cells <- WhichCells(my.se,idents=c('36')
+
+my.se<-SetIdent(my.se,cells =enterocytes,value = 'absorptive epithelial cells')
+my.se<-SetIdent(my.se,cells =enterocytes,value = 'non-absorptive epithelial cells')
+my.se<-SetIdent(my.se,cells =enterocytes,value = 'monocytes')
+my.se<-SetIdent(my.se,cells =enterocytes,value = 'T cells')
+my.se<-SetIdent(my.se,cells =enterocytes,value = 'B cells')
+my.se<-SetIdent(my.se,cells =enterocytes,value = 'red blood cells')
+my.se<-SetIdent(my.se,cells =enterocytes,value = 'B cells')
+my.se<-SetIdent(my.se,cells =enterocytes,value = 'cycling cells ')
+
+
 
