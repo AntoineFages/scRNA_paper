@@ -2,7 +2,6 @@
 #Script 2. R script for QC of mapped data
 
 library(Seurat)
-library(ggplot2)
 library(dplyr)
 library(scales)
 library(gridExtra)
