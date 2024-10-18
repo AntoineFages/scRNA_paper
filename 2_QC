@@ -4,7 +4,6 @@
 library(Seurat)
 library(dplyr)
 library(scales)
-library(gridExtra)
 library(MAST)
 library(ips)
 library(ddqcR)
