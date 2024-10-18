@@ -19,7 +19,6 @@ enterocytes <- RunPCA(enterocytes,npcs = 50)
 enterocytes <- FindNeighbors(enterocytes)
 enterocytes <- FindClusters(enterocytes,resolution=0.2)
 enterocytes <- RunUMAP(enterocytes,dims=1:50)
-DimPlot(enterocytes,label=T)
 
 ent1<-WhichCells(enterocytes,idents=c('0','1','2','6'))
 ent2<-WhichCells(enterocytes,idents=c('3'))
@@ -33,3 +32,30 @@ my.se<-SetIdent(my.se,cells =LRE,value = 'BEST4 cells')
 
 #Subclustering in non-absorptive epithelial cells
 secretory<-subset(my.se,idents=c('non-absorptive epithelial cells'))
+DefaultAssay(secretory)<-'integrated'
+secretory <- RunPCA(secretory,npcs = 50)
+secretory <- FindNeighbors(secretory)
+secretory <- FindClusters(secretory,resolution=0.05)
+secretory <- RunUMAP(secretory,dims=1:50)
+
+Prolif<-WhichCells(secretory,idents=c('0'))
+Goblet<-WhichCells(secretory,idents=c('1'))
+Tuft<-WhichCells(secretory,idents=c('2'))
+Enteroendo<-WhichCells(secretory,idents=c('3'))
+EpiDC<-WhichCells(secretory,idents=c('4'))
+
+my.se<-SetIdent(my.se,cells =Prolif,value = 'proliferating secretory cells')
+my.se<-SetIdent(my.se,cells =Goblet,value = 'goblet cells')
+my.se<-SetIdent(my.se,cells =Tuft,value = 'Tuft cells')
+my.se<-SetIdent(my.se,cells =EpiDC,value = 'epithelial DCs')
+my.se<-SetIdent(my.se,cells =Enteroendo,value = 'enteroendocrine cells')
+
+#Subclustering in monocytes
+monocytes<-subset(my.se,idents=c('monocytes'))
+DefaultAssay(monocytes)<-'integrated'
+monocytes <- RunPCA(monocytes,npcs = 50)
+monocytes <- FindNeighbors(monocytes)
+monocytes <- FindClusters(monocytes,resolution=0.02)
+monocytes <- RunUMAP(monocytes,dims=1:50)
+
+
