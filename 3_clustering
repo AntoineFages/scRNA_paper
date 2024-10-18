@@ -27,4 +27,4 @@ list_of_samples<-readLines('XXX') #path to the list of samples
 for (i in list_of_samples){
 
   #load Seurat object
-  my.se <- readRDS(paste0(path_to_output_of_qc,my.samplename,"_filteredUMIs.rds"))
+  my.se <- readRDS(paste0(path_to_output_of_qc,my.samplename,"_filteredUMIs_strict.rds"))
