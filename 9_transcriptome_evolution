@@ -1,1 +1,84 @@
+#!/usr/bin/env Rscript
+#Script 9. R script for characterisation of transcriptome evolution across cell populations
+
+library(Seurat)
+library(scibet)
+library(dplyr)
+library(tibble)
+
+##### input data #####
+path_to_output_of_integration <- 'XXX' #path to put the output of integration
+path_to_output_of_transcriptome_characterisation <- 'XXX' #path to put the output of analyses in this script
+
+#Read Seurat object
+my.se <- readRDS(paste0(path_to_output_of_integration,'integrated_dataset_final.rds'))
+
+#Input tables
+TAI_table <- read.table('XXX') #path to table containing TAI values 
+Tau_table <- read.table('XXX') #path to table containing tissue specificity values
+PPI_table <- read.table('XXX') #path to table containing high-confidence PPIs
+dNdS_table <- read.table('XXX') #path to table containing dNdS values for protein-coding genes
+
+##### function to calculate weighted average per cell #####
+#Create function to calculate for each cell the weighted average across all genes expressed
+function_average_within_cell <- function(Seurat_obj, ident_of_Seurat_obj, table, value_column_of_table, geneID_column_of_table){
+
+  #Create matrix of data and table of metadata for Seurat object
+  data <- GetAssayData(Seurat_obj,slot='data',assay='RNA')
+  meta <- Seurat_obj@meta.data
+
+  #Remove any potential NA from the table
+  table <- df[!is.na(table[, value_column_of_table]), c(geneID_column_of_table, value_column_of_table)]
+  rownames(table) <- table[ ,geneID_column_of_table]
+
+  #select genes expressed in data object
+  data_genes_in_common <- data[intersect(rownames(data), table[ ,geneID_column_of_table]),]
+
+  #Get unique values for ident
+  meta[,ident_of_Seurat_obj] <- factor(meta[,ident_of_Seurat_obj])
+  uniq_ident_of_Seurat_obj <- unique(meta[,ident_of_Seurat_obj])
+
+  
+  value_by_ident <- lapply(uniq_ident_of_Seurat_obj, function(x){
+    y <- rownames(meta[meta[,ident_of_Seurat_obj] == x,]) #get cell IDs that belong to the ident
+    matrix <- data_genes_in_common[,y] #subset the data object to these cells
+
+    #Calculate the weighted average value per cell
+    weighted_average_per_cell <- lapply(colnames(matrix), function(z){
+      gene_exp <- matrix[,z]
+      gene_exp <- gene_exp[gene_exp !=0] #only select genes expressed in the cell
+      gene_exp <- lapply(gene_exp, function(a){return(expm1(a))}) 
+      gene_exp_value <- lapply(names(gene_exp), function(n) {return(df[n, to_calculate]*gene_exp[[n]])})
+      gene_exp_value <- unlist(gene_exp_value)
+      gene_exp_value_ave <- sum(gene_exp_value)/sum(unlist(gene_exp)) 
+      return(gene_exp_value_ave)
+      })
+    
+    values_per_ident <- data.frame("weightAve"=unlist(weighted_average_per_cell),"ident"=x)
+    return(values_per_ident)
+  })
+
+  #Create a dataframe containing all values across all idents
+  all_values <- Reduce(rbind, values_per_ident) 
+  return(all_values_per_ident)
+}
+
+##### calculate values per cell using the function #####
+TAI <- function_average_within_cell(my.se, "CellTypes", TAI_table, "PSnum", "geneID")
+saveRDS(TAI,paste0(path_to_output_of_transcriptome_characterisation,'TAI.rds')
+
+Tau <- function_average_within_cell(my.se, "CellTypes", Tau_table, "CellTypeSpe", "geneID")
+saveRDS(Tau,paste0(path_to_output_of_transcriptome_characterisation,'Tau.rds')
+
+PPI <- function_average_within_cell(my.se, "CellTypes", PPI_table, "Freq", "geneID")
+saveRDS(TAI,paste0(path_to_output_of_transcriptome_characterisation,'PPI.rds')
+
+dNdS <- function_average_within_cell(my.se, "CellTypes", dNdS_table, "dNdS", "geneID")
+saveRDS(TAI,paste0(path_to_output_of_transcriptome_characterisation,'dNdS.rds')
+
+
+
+
+
+
 
