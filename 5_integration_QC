@@ -2,25 +2,25 @@
 #Script 5. R script for integration of Seurat object across species
 
 library(Seurat)
-library(ggplot2)
-library(dplyr)
-library(scales)
-library(gridExtra)
-library(MAST)
-library(ips)
-library(future)
-library(viridis)
-library(speckle)
-library(patchwork)
-library(cowplot)
-library(gridGraphics)
-library(limma)
 
 path_to_output_of_integration <- 'XXX' #path to put the output of integration
 
 #Read Seurat object
 my.se <- readRDS(paste0(path_to_output_of_integration,'integrated_dataset.rds'))
 
+#Filter out clusters with high fraction of mitochondrial and ribosomal reads
+my.se <- subset(my.se,idents=c('1','29','16','32','33'),invert=TRUE)
 
+#Run PCA
+my.se  <- RunPCA(my.se , npcs=100, verbose = FALSE)
 
+#Find neighbours and clusters
+my.se  <- FindNeighbors(my.se , reduction = "pca", dims = 1:100)
+my.se  <- FindClusters(my.se , resolution = 1)
+
+#Check the tree of clusters, to see what's the relationship between them
+dims=c(1:100)
+
+#Run UMAP
+my.se <- RunUMAP(my.se, reduction = "pca", dims = 1:100)
 
