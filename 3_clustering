@@ -1,1 +1,13 @@
-#
+#!/usr/bin/env Rscript
+#Script 3. R script for identification of clusters within individual sample files
+
+library(Seurat)
+library(ggplot2)
+library(dplyr)
+library(scales)
+library(gridExtra)
+library(MAST)
+library(ips)
+library(ddqcR)
+
+
