@@ -3,11 +3,7 @@
 
 library(Seurat)
 library(dplyr)
-library(scales)
-library(gridExtra)
 library(MAST)
-library(ips)
-library(future)
 
 list_of_samples<-readLines('XXX') #path to the list of samples
 path_to_output_of_integration <- 'XXX' #path to put the output of integration
