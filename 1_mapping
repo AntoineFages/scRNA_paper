@@ -1,17 +1,13 @@
 #Script 1. Mapping to reference genome and QC
 
-##### 1. Mapping #####
-Mapping raw sequencing data to genome
+#Fastqs, sample IDs and reference created through cellranger
 fastqs = "XXX" #path_to_fastq_files
 sample = "XXX" #sample ID
 cellranger_reference = "XXX" #reference annotated genome created with cellranger
 
+#Command
 cellranger count \
 --id=${sample} \
 --transcriptome=$cellranger_reference \
 --fastqs=${fastqs} \
 --sample=${sample} \
-
-##### 2. QC #####
-Rscript script_QC.R
-
