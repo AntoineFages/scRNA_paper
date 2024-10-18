@@ -16,11 +16,24 @@ my.se  <- RunPCA(my.se , npcs=100, verbose = FALSE)
 
 #Find neighbours and clusters
 my.se  <- FindNeighbors(my.se , reduction = "pca", dims = 1:100)
-my.se  <- FindClusters(my.se , resolution = 1)
+my.se  <- FindClusters(my.se , resolution = 3)
 
 #Check the tree of clusters, to see what's the relationship between them
 dims=c(1:100)
 
 #Run UMAP
 my.se <- RunUMAP(my.se, reduction = "pca", dims = 1:100)
+
+#Assign clusters to cell types
+#Check expression of marker genes
+mrk<-c("epcam","LOC100706176","fabp2","LOC100704253","LOC100703770","LOC109195983","cubn","best4","cftr","myb","LOC100697624","LOC102078463","LOC102082568","pou2f3","lrmp","scg3","neurod1","LOC102081683","LOC109202766","LOC100694706","LOC100693084","LOC102078117","prdm1","epx","LOC100707205","LOC100703242","LOC100704742","LOC100699713","LOC109204854","gata3","cd79a","plk2","LOC106096470","LOC102080222","LOC100704059","anxa1","LOC100694532","lyve1","cenpe")
+mrk_names<-c("epcam","amcase-1","fabp2","tmigd1","amcase-2","cathepsin L1","cubn","best4","cftr","myb","mex3a","guanylin","muc2a","pou2f3","lrmp","scg3","neurod1","cr1","mcp1b","ppt2","c1qb","c1qc","prdm1","epx","ffar2","bcl11bb","ccl3","ccl20","ccl10","gata3","cd79a","plk2","IgM μ heavy chain-like","hbab","hbba","anxa1","col1a1","lyve1","cenpe")
+DotPlot(my.se,features=mrk) + scale_x_discrete(labels=rev(mrk_names)
+
+#Assign clusters to cell type categories
+epithelium <- WhichCells(my.se,idents=c('2','4','5','8','9','15','16','23','28','33','39','43','46','48',))
+#secretory_cells
+#Tcells
+#Bcells
+#monocytes
 
