@@ -1,5 +1,5 @@
 #!/usr/bin/env Rscript
-#Script 5. R script for integration of Seurat object across species
+#Script 5. R script for QC and cell group identification from integrated dataset
 
 library(Seurat)
 
