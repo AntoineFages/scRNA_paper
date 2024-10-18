@@ -25,10 +25,10 @@ ent2<-WhichCells(enterocytes,idents=c('3'))
 LRE<-WhichCells(enterocytes,idents=c('4'))
 B4<-WhichCells(enterocytes,idents=c('5'))
 
-my.se<-SetIdent(my.se,cells =ent1,value = 'enterocytes 1')
-my.se<-SetIdent(my.se,cells =ent2,value = 'enterocytes 2')
-my.se<-SetIdent(my.se,cells =LRE,value = 'LREs')
-my.se<-SetIdent(my.se,cells =LRE,value = 'BEST4 cells')
+my.se<-SetIdent(my.se,cells = ent1,value = 'enterocytes 1')
+my.se<-SetIdent(my.se,cells = ent2,value = 'enterocytes 2')
+my.se<-SetIdent(my.se,cells = LRE,value = 'LREs')
+my.se<-SetIdent(my.se,cells = B4,value = 'BEST4 cells')
 
 #Subclustering in non-absorptive epithelial cells
 secretory<-subset(my.se,idents=c('non-absorptive epithelial cells'))
@@ -44,11 +44,11 @@ Tuft<-WhichCells(secretory,idents=c('2'))
 Enteroendo<-WhichCells(secretory,idents=c('3'))
 EpiDC<-WhichCells(secretory,idents=c('4'))
 
-my.se<-SetIdent(my.se,cells =Prolif,value = 'proliferating secretory cells')
-my.se<-SetIdent(my.se,cells =Goblet,value = 'goblet cells')
-my.se<-SetIdent(my.se,cells =Tuft,value = 'Tuft cells')
-my.se<-SetIdent(my.se,cells =EpiDC,value = 'epithelial DCs')
-my.se<-SetIdent(my.se,cells =Enteroendo,value = 'enteroendocrine cells')
+my.se<-SetIdent(my.se,cells = Prolif,value = 'proliferating secretory cells')
+my.se<-SetIdent(my.se,cells = Goblet,value = 'goblet cells')
+my.se<-SetIdent(my.se,cells = Tuft,value = 'Tuft cells')
+my.se<-SetIdent(my.se,cells = EpiDC,value = 'epithelial DCs')
+my.se<-SetIdent(my.se,cells = Enteroendo,value = 'enteroendocrine cells')
 
 #Subclustering in monocytes
 monocytes<-subset(my.se,idents=c('monocytes'))
@@ -58,4 +58,65 @@ monocytes <- FindNeighbors(monocytes)
 monocytes <- FindClusters(monocytes,resolution=0.02)
 monocytes <- RunUMAP(monocytes,dims=1:50)
 
+Macro1<-WhichCells(monocytes,idents=c('0'))
+DC<-WhichCells(monocytes,idents=c('1'))
+Macro2<-WhichCells(monocytes,idents=c('2'))
+
+my.se<-SetIdent(my.se,cells =Macro1,value = 'macrophages 1')
+my.se<-SetIdent(my.se,cells =DC,value = 'DCs')
+my.se<-SetIdent(my.se,cells =Macro2,value = 'macrophages 2')
+
+#Subclustering in T cells
+Tcells<-subset(my.se,idents=c('T cells'))
+DefaultAssay(Tcells)<-'integrated'
+Tcells <- RunPCA(Tcells,npcs = 50)
+Tcells <- FindNeighbors(Tcells)
+Tcells <- FindClusters(Tcells,resolution=0.1)
+Tcells <- RunUMAP(Tcells,dims=1:50)
+
+Tc1<-WhichCells(Tcells,idents=c('0'))
+Tc2<-WhichCells(Tcells,idents=c('1'))
+Tc3<-WhichCells(Tcells,idents=c('2'))
+Tc4<-WhichCells(Tcells,idents=c('3'))
+Tc5<-WhichCells(Tcells,idents=c('4'))
+
+my.se<-SetIdent(my.se,cells = Tc1,value = 'T cells 1')
+my.se<-SetIdent(my.se,cells = Tc2,value = 'T cells 2')
+my.se<-SetIdent(my.se,cells = Tc3,value = 'T cells 3')
+my.se<-SetIdent(my.se,cells = Tc4,value = 'T cells 4')
+my.se<-SetIdent(my.se,cells = Tc5,value = 'T cells 5')
+
+#Subclustering in B cells
+Bcells<-subset(my.se,idents=c('B cells'))
+DefaultAssay(Bcells)<-'integrated'
+Bcells <- RunPCA(Bcells,npcs = 50)
+Bcells <- FindNeighbors(Bcells)
+Bcells <- FindClusters(Bcells,resolution=0.1)
+Bcells <- RunUMAP(Bcells,dims=1:50)
+
+Bc1<-WhichCells(Bcells,idents=c('0'))
+Bc2<-WhichCells(Bcells,idents=c('1'))
+
+my.se<-SetIdent(my.se,cells = Bc1,value = 'B cells 1')
+my.se<-SetIdent(my.se,cells = Bc2,value = 'B cells 2')
+
+#Mesenchymal cells
+mesenchyme<-subset(my.se,idents=c('mesenchymal cells'))
+DefaultAssay(mesenchyme)<-'integrated'
+mesenchyme <- RunPCA(mesenchyme,npcs = 50)
+mesenchyme <- FindNeighbors(mesenchyme)
+mesenchyme <- FindClusters(mesenchyme,resolution=0.02)
+mesenchyme <- RunUMAP(mesenchyme,dims=1:50)
+
+mesench<-WhichCells(mesenchyme,idents=c('0'))
+endoth<-WhichCells(mesenchyme,idents=c('1'))
+
+my.se<-SetIdent(my.se,cells = mesench,value = 'mesenchymal cells')
+my.se<-SetIdent(my.se,cells = endoth,value = 'endothelial cells')
+
+#Set new idents to cell types
+my.se$CellTypes <- Idents(my.se)
+
+#Save Seurat object
+saveRDS(my.se,paste0(path_to_output_of_integration,"integrated_dataset_final.rds"))
 
