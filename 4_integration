@@ -5,11 +5,11 @@ library(Seurat)
 library(dplyr)
 library(MAST)
 
-list_of_samples<-readLines('XXX') #path to the list of samples
+list_of_samples <- readLines('XXX') #path to the list of samples
 path_to_output_of_integration <- 'XXX' #path to put the output of integration
 
 #loop through the paths to create list of Seurat objects
-my.se<-lapply(paste0(path_to_output_of_clustering,list_of_samples,'_Clusters.rds'),readRDS)
+my.se <- lapply(paste0(path_to_output_of_clustering,list_of_samples,'_Clusters.rds'),readRDS)
 
 ##### Integration #####
 features <- SelectIntegrationFeatures(object.list = my.se, nfeatures = 5000) #Select features that are repeatedly variable across datasets for integration
