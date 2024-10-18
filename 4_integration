@@ -9,5 +9,8 @@ library(MAST)
 library(ips)
 library(future)
 
+list_of_samples<-readLines('XXX') #path to the list of samples
 
+#loop through the paths to create list of Seurat objects
+my.se<-lapply(paste0(path_to_ouput_,list_samples,'_Clusters_NoCC_240123.rds'),readRDS)
 
