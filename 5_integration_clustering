@@ -49,5 +49,6 @@ my.se<-SetIdent(my.se,cells =enterocytes,value = 'red blood cells')
 my.se<-SetIdent(my.se,cells =enterocytes,value = 'B cells')
 my.se<-SetIdent(my.se,cells =enterocytes,value = 'cycling cells ')
 
+my.se$CellGroups <- Idents(my.se)
 
 
