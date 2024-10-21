@@ -6,6 +6,9 @@ library(WGCNA)
 library(scWGCNA)
 library(pheatmap)
 library(tidyr)
+library(pheatmap)
+library(reshape2)
+library(dplyr)
 
 #Read Seurat object
 my.se <- readRDS(paste0(path_to_output_of_integration,'integrated_dataset_final.rds'))
