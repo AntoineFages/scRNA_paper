@@ -1,1 +1,96 @@
+#!/usr/bin/env Rscript
+#Script 16. R script for testing associations between epithelial relative abundances and gene expression signatures
+
+library(Seurat)
+
+##### Read input files #####
+
+#Genes expressed
+genes_Prct_CellTypes <- readRDS('XXX') #list of tables containing the % of cells expressing each gene within each cell population
+
+#scWGCNA module data
+Module_genes <- readRDS('XXX') #
+module_numbers<-c(1:25)
+
+#Vector of cell population in which module expression is the highest, for each scWGCNA module
+Highest_expression <- c('cycling cells','mesenchymal cells','LREs','enterocytes 1','T cells 3','macrophages 1','enterocytes 1',
+                        'macrophages 1','enterocytes 2','DCs','eosinophils','epithelial DCs','Tuft cells','B cells 1','enterocytes 1',
+                        'enterocytes 1','enterocytes 1','enteroendocrine cells','goblet cells','Tuft cells','BEST4 cells',
+                        'none','enteroendocrine cells','mesenchymal cells','macrophages 1')
+
+#Remove uninformative scWGCNA modules: 1 (cycling cells), 11 (eosinophils) and 22 (too widespread)
+Module_genes <- Module_genes[-c(1,11,22)]
+Highest_expression <- Highest_expression[-c(1,11,22)]
+module_numbers <- module_numbers[-c(1,11,22)]
+
+
+#Cell population-specific genes
+genes_spe <- readRDS('XXX') #
+
+#cpm pseudobulk data
+CellTypes<-c('enterocytes 1','enterocytes 2','LREs','BEST4 cells','proliferating secretory cells','goblet cells','Tuft cells',
+            'enteroendocrine cells','epithelial DCs','DCs','macrophages 1','macrophages 2','eosinophils','T cells 1','T cells 2',
+            'T cells 3','T cells 4','T cells 5','B cells 1','B cells 2','RBCs','mesenchymal cells','endothelial cells','cycling cells')
+
+cpm <- readRDS('XXX')
+rawCounts <- lapply(seq_along(CellTypes), function(i) cpm[,grep(CellTypes[[i]],colnames(cpm))])
+rawCounts[[10]] <- rawCounts[[10]][,-(grep(CellTypes[[9]],colnames(rawCounts[[10]])))]
+
+#Remove outliers with low number of reads
+rawCounts[[2]] <- rawCounts[[2]][,-(grep('Julorn',colnames(rawCounts[[2]])))]
+rawCounts[[3]] <- rawCounts[[3]][,-(grep('Hapmic',colnames(rawCounts[[3]])))]
+rawCounts[[5]] <- rawCounts[[5]][,-(grep('Julorn',colnames(rawCounts[[5]])))]
+rawCounts[[10]] <- rawCounts[[10]][,-(grep('Cphfro',colnames(rawCounts[[10]])))]
+rawCounts[[10]] <- rawCounts[[10]][,-(grep('Julorn',colnames(rawCounts[[10]])))]
+rawCounts[[20]] <- rawCounts[[20]][,-(grep('Julorn',colnames(rawCounts[[20]])))]
+
+#Allow more max 50% of 0 for each gene and rename column names
+rawCounts <- lapply(rawCounts, function(x) x[rowSums(x>0)>ncol(x)/2,])
+new_cols <-lapply(colnames(rawCounts_all), function(x) strsplit(x,split = '_')[[1]][[1]])
+colnames(rawCounts_all) <- unlist(new_cols)
+for (i in 1:length(rawCounts)){ colnames(rawCounts[[i]]) <- sub(".*_", "", colnames(rawCounts[[i]]))}
+
+#Remove cell populations for which too few species are represented by 20 cells or more
+rawCounts <- rawCounts[-c(13,18,20,21,23,24)]
+CellTypes <- CellTypes[-c(13,18,20,21,23,24)]
+genes_spe <- genes_spe[-c(13,18,20,21,23,24)]
+
+#Remove blank spaces from CellTypes object
+Cell_Types<-sub(" ", "_", CellTypes)
+Cell_Types<-sub(" ", "_", Cell_Types)
+
+#List of species included
+species <- c("Batfer","Benhor","Boumic","Calple","Cphfro","Ctehor","Cypcol","Erecya","Hapmic","Julorn","Lepatt","Lepelo",
+             "Limdar","Neobre","Neobri","Orenil","Permic","Petort","Simdia","Telvit","Trezeb","Trioto","Tromoo","Xenspi")
+
+#Log transformation of cpm and exclude Astbur and Orenil (not in the radiation)
+lograwCounts <- lapply(rawCounts, function(x) log2(x+1))
+exclude_species <- c('Astbur','Orenil')
+lograwCounts <- lapply(lograwCounts, function(x) x[,!(colnames(x) %in% exclude_species)])
+
+##### Prepare the 3 gene sets for multivariate phylogenetic regressions ##### 
+#'Global' gene set: genes expressed in at least 20% of cells within each cell population
+genes_20Prct <- lapply(genes_Prct_CellTypes, function(x) x[x$Cell_proportion > 0.2,])
+lograwCounts_20Prct <- lapply(seq_along(lograwCounts), function(i) lograwCounts[[i]][rownames(lograwCounts[[i]]) %in% genes_20Prct[[i]],])
+names(lograwCounts_20Prct) <- CellTypes
+
+#'Specific' gene set: genes that are cell population-specific
+lograwCounts_spe <- lapply(seq_along(lograwCounts), function(i) lograwCounts[[i]][rownames(lograwCounts[[i]]) %in% names(genes_spe[[i]]),])
+names(lograwCounts_spe) <- CellTypes
+
+#'scWGCNA module' gene set: genes in scWGCNA co-expression modules
+names(lograwCounts) <- CellTypes
+lograwCounts_modules <- lapply(Highest_expression, function(x) lograwCounts[[x]])
+lograwCounts_modules <- lograwCounts_modules[lengths(lograwCounts_modules) != 0]
+lograwCounts_modules <- lapply(seq_along(lograwCounts_modules), function(i) lograwCounts_modules[[i]][rownames(lograwCounts_modules[[i]]) %in% Module_genes[[i]],])
+lograwCounts_modules <- lapply(lograwCounts_modules, function(x) na.omit(x))
+
+#Input species time-calibrated trees
+tree_raw<-read.tree('XXX') #phylogenetic tree from Ronco et al. (2021)
+
+
+
+
+
+
 
