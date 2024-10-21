@@ -7,6 +7,9 @@ library(ggplot2)
 library(viridis)
 library(MetaNeighbor)
 library(scibet)
+library(dplyr)
+library(DESeq2)
+library(scuttle)
 
 ##### Read input files #####
 #Custom PCA script and script to plot relative cell abundances
@@ -23,6 +26,13 @@ Idents(my.se) <- factor(Idents(my.se),levels=CellTypes)
 my.se$CellTypes <- Idents(my.se)
 names(colours_CellTypes) <- CellTypes
 
+#Define taxonomic tribe colours
+colours_tribe<-c("#59595C","#F04D29","#9AB9D9","#682E7A","#166533","#C588BB","#535CA9","#845F25","#FBAC43","#FDDF13","#959170","#242626","#AE262A","#86C773")
+names_colours_tribe<-c("boule","cypri","ectod","eretm","haplo","lampr","limno","oreoc","peris","cypho","trema","bathy","bentho","troph")
+names(colours_tribe)<-names_colours_tribe
+
+#Species in dataset
+species_included<-unique(my.se@meta.data$orig.ident.2)
 
 ##### Basic visualisations #####
 #Basic metrics
@@ -106,5 +116,180 @@ prd <- SciBet(train_set, test_set[,-ncol(test_set)])
 conf<-Confusion_heatmap(test_set$label, prd)
 conf$data$prd <- factor(conf$data$prd,levels=rev(CellTypes))
 conf
+
+##### Data pseudobulk normalisation for PCA #####
+#Function pseudobulk and normalisation with DESEq2
+function_pseudobulk_normalisation <- function(my.se,minNcells) {
+  Idents(my.se)<-my.se$CellTypes
+
+  #Extract raw counts and metadata to create SingleCellExperiment object
+  counts_all< - GetAssayData(object = my.se, assay="RNA",slot = "data")
+
+  #Set up metadata as desired for aggregation and DE analysis
+  meta.data_all<-my.se@meta.data
+  meta.data_all$orig.ident.2<-factor(my.se$orig.ident.2)
+
+  #Create single cell experiment object
+  sce_all <- SingleCellExperiment(assays=list(counts=counts_all),colData=meta.data_all)
+
+  #Named vector of cluster names
+  kids <- purrr::set_names(CellTypes)
+
+  #Named vector of sample names
+  sids <- purrr::set_names(species_included)
+
+  #Turn named vector into a numeric vector of number of cells per sample
+  n_cells <- as.numeric(table(meta.data_all$orig.ident.2))
+
+  #Determine how to reoder the samples (rows) of the metadata to match the order of sample names in sids vector
+  m <- match(sids, meta.data_all$orig.ident.2)
+
+  #Create the sample level metadata by combining the reordered metadata with the number of cells corresponding to each sample.
+  ei <- data.frame(meta.data_all[m, ], n_cells, row.names = NULL)
+
+  #Subset metadata to only include the cluster and sample IDs to aggregate across
+  groups_all<-meta.data_all[,c("CellTypes","orig.ident.2")]
+
+  #Not every cluster is present in all samples; create a vector that represents how to split samples
+  splitf <- sapply(stringr::str_split(rownames(pb_all), pattern = "_", n = 2), `[`, 1)
+
+  #Turn into a list and split the list into components for each cluster and transform, so rows are genes and columns are samples and make rownames as the sample IDs
+  pb_all <- split.data.frame(pb_all, factor(splitf)) %>% lapply(function(u) set_colnames(t(u),stringr::str_extract(rownames(u), "(?<=_)[:alnum:]+")))
+
+  #Prepare dataframe for plotting
+  get_sample_ids <- function(x){
+    pb_all[[x]] %>% colnames()
+  }
+  de_samples <- purrr::map(1:length(kids), get_sample_ids) %>% unlist()
+
+  #Get cluster IDs for each of the samples
+  samples_list <- purrr::map(1:length(kids), get_sample_ids)
+  get_cluster_ids <- function(x){
+    rep(names(pb_all)[x],each = length(samples_list[[x]]))
+  }
+  de_cluster_ids <- purrr::map(1:length(kids), get_cluster_ids) %>%  unlist()
+
+  #Create a data frame with the sample IDs, cluster IDs and condition
+  gg_df <- data.frame(CellTypes = de_cluster_ids, orig.ident.2 = de_samples)
+  gg_df <- left_join(gg_df, ei[, c("orig.ident.2","tribe")])
+  metadata <- gg_df #%>% dplyr::select(CellTypes,orig.ident.2,tribe)
+
+  #Generate vector of cluster IDs
+  metadata$CellTypes <- factor(metadata$CellTypes,levels=unique(CellTypes))
+  clusters <- levels(metadata$CellTypes)
+  groups_all <- colData(sce_all)[,c("CellTypes","orig.ident.2")]
+
+  #Aggregate across cluster-sample groups
+  pb_all <- aggregate.Matrix(t(counts_all), groupings = groups_all, fun = "mean")
+
+  #Keep genes expressed in at least 2 cells in all species
+  genes_ToKeep <- readRDS('XXX') #list of genes expressed in at least 2 cells in all species
+  pb_all <- pb_all[rownames(pb_all) %in% genes_ToKeep,]
+  pb_all <- as.matrix(t(pb_all))
+
+  metadata$combi <- paste0(metadata$CellTypes,"_",metadata$orig.ident.2)
+
+  #Subset samples if fewer than minNcells
+  for (k in 1:length(CellTypes)){
+    aux <- my.se@meta.data[my.se@meta.data$CellTypes==CellTypes[[k]],]
+    for (j in 1:length(unique(aux$orig.ident.2))){
+      if (plyr::count(aux$orig.ident.2)$freq[[j]] < minNcells){
+        aux2 <- paste0(CellTypes[[k]],"_",plyr::count(aux$orig.ident.2)$x[[j]])
+        pb_all <- pb_all[,which(colnames(pb_all)!=aux2)]
+        metadata <- metadata2[metadata$combi %in% colnames(pb_all),]
+      }
+    }
+  }
+
+  #Normalisation with DESeq2
+  dds_counts_all <- DESeqDataSetFromMatrix(round(pb_all), colData = metadata, design = ~ tribe)
+  dds_all<-estimateSizeFactors(dds_counts_all)
+  return(list(dds_all,metadata))
+}
+
+#Get normalised matrix of pseudobulks
+dds <- function_pseudobulk_normalisation(my.se,20)[[1]]
+metadata <- function_pseudobulk_normalisation(my.se,20)[[2]]
+
+##### pseudobulk PCA #####
+pca_function <- function(dds,metadata) {
+  vst <- varianceStabilizingTransformation(dds)
+
+
+
+  ### plot PCA
+  ### Create tribes and colours
+  colours_tribe<-c("#59595C","#F04D29","#9AB9D9","#682E7A","#166533","#C588BB","#535CA9","#845F25","#FBAC43","#FDDF13","#959170","#242626","#AE262A","#86C773")
+  names_colours_tribe<-c("boule","cypri","ectod","eretm","haplo","lampr","limno","oreoc","peris","cypho","trema","bathy","bentho","troph")
+  names(colours_tribe)<-names_colours_tribe
+
+  pcaData12all<-plotPCA.12(vst,intgroup=c("tribe"),returnData=TRUE)
+  pcaData23all<-plotPCA.23(vst,intgroup=c("tribe"),returnData=TRUE)
+  pcaData13all<-plotPCA.13(vst,intgroup=c("tribe"),returnData=TRUE)
+  pcaData14all<-plotPCA.14(vst,intgroup=c("tribe"),returnData=TRUE)
+
+  percentVar12all<-round(100*attr(pcaData12all,"percentVar"))
+  percentVar23all<-round(100*attr(pcaData23all,"percentVar"))
+  percentVar13all<-round(100*attr(pcaData13all,"percentVar"))
+  percentVar14all<-round(100*attr(pcaData14all,"percentVar"))
+
+  pcaData12all$CellTypes<-factor(metadata$CellTypes,levels=CellTypes)
+  pcaData13all$CellTypes<-factor(metadata$CellTypes,levels=CellTypes)
+  pcaData23all$CellTypes<-factor(metadata$CellTypes,levels=CellTypes)
+  pcaData14all$CellTypes<-factor(metadata$CellTypes,levels=CellTypes)
+
+  pcaData12all$tribe<-metadata$tribe
+  pcaData13all$tribe<-metadata$tribe
+  pcaData23all$tribe<-metadata$tribe
+  pcaData14all$tribe<-metadata$tribe
+
+  plot5<-ggplot(pcaData12all,aes(PC1,PC2))+geom_point(size=3,aes(shape=tribe,color=CellTypes)) + scale_color_manual(values=colours_CellTypes) + scale_shape_manual(values=seq(0,13)) + xlab(paste0("PC1: ",percentVar12all[1],"% variance")) + ylab(paste0("PC2: ",percentVar12all[2],"% variance")) + coord_fixed() +  theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+  #plot6<-ggplot(pcaData23all,aes(PC2,PC3))+geom_point(size=3,aes(shape=tribe,color=CellTypes)) + scale_color_manual(values=colours_CellTypes) + scale_shape_manual(values=seq(0,13)) + xlab(paste0("PC2: ",percentVar23all[1],"% variance")) + ylab(paste0("PC3: ",percentVar23all[2],"% variance")) + coord_fixed() +  theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+  plot6<-ggplot(pcaData13all,aes(PC1,PC3))+geom_point(size=3,aes(shape=tribe,color=CellTypes)) + scale_color_manual(values=colours_CellTypes) + scale_shape_manual(values=seq(0,13)) + xlab(paste0("PC1: ",percentVar13all[1],"% variance")) + ylab(paste0("PC3: ",percentVar13all[3],"% variance")) + coord_fixed() +  theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+  plot7<-ggplot(pcaData14all,aes(PC1,PC4))+geom_point(size=3,aes(shape= tribe,color=CellTypes)) + scale_color_manual(values=colours_CellTypes) + scale_shape_manual(values=seq(0,13)) + xlab(paste0("PC1: ",percentVar14all[1],"% variance")) + ylab(paste0("PC4: ",percentVar14all[4],"% variance")) + coord_fixed() +  theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+
+  legend <- get_legend(plot5)
+  plot5 <- plot5 + theme(legend.position="none")
+  plot6 <- plot6 + theme(legend.position="none")
+  plot7 <- plot7 + theme(legend.position="none")
+
+  grid.arrange(plot5, plot6, plot7, NULL,legend, ncol=3, top='top 12000 variable genes',layout_matrix = cbind(c(1,2), c(3,4),c(5,5)),widths = c(4,4,1))
+}
+
+
+
+
+
+
+
+##### Gene Specificity Index (gsi) #####
+#Compute gsi
+mat_species <- lapply(seq_along(species_included), function(i) NormalisedCount[,grep(species_included[[i]],colnames(NormalisedCount))])
+mat_species <- lapply(mat_species, function(x) scale(x, center = FALSE, scale = colSums(x)))
+gsi_species <- lapply(mat_species, function(x) x/rowMeans(x))
+gsi <- na.omit(do.call('cbind',gsi_species))
+
+#Prepare for heatmap
+cols <- colnames(gsi)
+str_cols <- stringr::str_match(cols, '(.*)_(.*)')[, -1]
+colnames(str_cols) <- c('CellType','Species')
+rownames(str_cols) <- cols
+str_cols <- as.data.frame(str_cols)
+tribe_species <- coldata[match(species_included,coldata$species),]$tribe
+colours_species <- colours_tribe[tribe_species]
+names(colours_species) <- species_included
+ColorCode <- list(CellType=colours_CellTypes,Species=colours_species)
+
+#Calculate Spearman pairwise correlations
+sampleCorr <- cor(gsi,gsi,method = 'spearman')
+sampleCorrMatrix <- as.matrix(sampleCorr)
+
+#Plot
+pheatmap(sampleCorrMatrix,annotation_col=str_cols,annotation_colors=ColorCode,color = viridis(1000),main='gsi') #plot Spearman paiwirse correlations based on gsi
+
+
+
+
+
 
 
