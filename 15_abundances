@@ -1,1 +1,4 @@
 
+
+
+count_cellpop <- readRDS('XXX') #file containing the number of cells in each cell population and each species
