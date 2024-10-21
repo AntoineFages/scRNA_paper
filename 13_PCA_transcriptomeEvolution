@@ -1,1 +1,144 @@
+#!/usr/bin/env Rscript
+#Script 13. R script for performing PCA based on 6 metrics: MSGED, AUC (Augur), TAI, Tau, PPI, dNdS
+
+library(Seurat)
+library(sparseMatrixStats)
+library(SingleCellExperiment)
+library(ggplot2)
+library(viridis)
+library(scuttle)
+library(Augur)
+library(dplyr)
+library(ggfortify)
+
+CellTypes<-c('enterocytes 1','enterocytes 2','LREs','BEST4 cells','epithelial progenitors','goblet cells','Tuft cells','enteroendocrine cells','epithelial DCs','DCs','macrophages 1','macrophages 2','eosinophils','T cells 1','T cells 2','T cells 3','T cells 4','T cells 5','B cells 1','B cells 2','RBCs','mesenchymal cells','endothelial cells','cycling cells')
+colours_CellTypes<-c("#FF7F00","#FE9F38","#FDBF6F","#FED47D","#1F78B4","#5299C6","#84B9D7","#A6CEE3","#B8C0DD","#CAB2D6", "#B295C7","#9A78B8","#6A3D9A","#D6EE91","#CAE98F","#BEE48C","#B2DF8A","#A0D67C","#33A02C","#33A04C","#E31A1C","#FB9A99","#F18499","grey20")
+names(colours_CellTypes) <- CellTypes
+
+#distances based on cpm
+distance <- readRDS('~/scRNA/Seurat/gut/integration/species/data_0324/cpm_distances.rds')
+distance <- distance %>% group_by(CellTypes) %>% summarise(mean = mean(Exp))
+distance <- as.data.frame(distance)
+colnames(distance) <- c('CellTypes','distance')
+distance$CellTypes <- unfactor(distance$CellTypes)
+rownames(distance) <- distance$CellTypes
+
+#dNdS
+dNdS <- readRDS('~/zebrafish_tilapia_genes/gut_dNdS_0423.rds')
+dNdS <- dNdS %>% group_by(celltype) %>% summarise(mean = mean(weightAve))
+dNdS <- as.data.frame(dNdS)
+colnames(dNdS) <- c('CellTypes','dNdS')
+dNdS$CellTypes <- unfactor(dNdS$CellTypes)
+dNdS[dNdS$CellTypes=='proliferating secretory cells',]$CellTypes <- 'epithelial progenitors'
+rownames(dNdS) <- dNdS$CellTypes
+
+#TAI
+TAI<-readRDS('~/zebrafish_tilapia_genes/gut_RNA_0324_TAI.rds')
+TAI$celltype <- unfactor(TAI$celltype)
+TAI[TAI$celltype=='proliferating secretory cells',]$celltype <- 'epithelial progenitors'
+TAI$celltype <- factor(TAI$celltype,levels=CellTypes)
+ggplot(TAI, aes(x=celltype,y=weightAve,fill=celltype)) + geom_boxplot(outlier.shape = NA) + theme_classic() + RotatedAxis() + scale_fill_manual(values=colours_CellTypes) + NoLegend() + xlab('') + ylab('Transcriptome Age Index (TAI)') + coord_cartesian(ylim=c(3,12))
+
+TAI <- TAI %>% group_by(celltype) %>% summarise(mean = mean(weightAve))
+TAI <- as.data.frame(TAI)
+colnames(TAI) <- c('CellTypes','TAI')
+TAI$CellTypes <- unfactor(TAI$CellTypes)
+TAI[TAI$CellTypes=='proliferating secretory cells',]$CellTypes <- 'epithelial progenitors'
+rownames(TAI) <- TAI$CellTypes
+
+#Tau
+Tau<-readRDS('~/zebrafish_tilapia_genes/gut_RNA_0324_TauTissuesLog.rds')
+Tau$celltype <- unfactor(Tau$celltype)
+Tau[Tau$celltype=='proliferating secretory cells',]$celltype <- 'epithelial progenitors'
+Tau$celltype <- factor(Tau$celltype,levels=CellTypes)
+ggplot(Tau, aes(x=celltype,y=weightAve,fill=celltype)) + geom_boxplot(outlier.shape = NA) + theme_classic() + RotatedAxis() + scale_fill_manual(values=colours_CellTypes) + NoLegend() + xlab('') + ylab('Tissue specificity (Tau)') + coord_cartesian(ylim=c(.15,.65))
+
+Tau <- Tau %>% group_by(celltype) %>% summarise(mean = mean(weightAve))
+Tau <- as.data.frame(Tau)
+colnames(Tau) <- c('CellTypes','Tau')
+Tau$CellTypes <- unfactor(Tau$CellTypes)
+Tau[Tau$CellTypes=='proliferating secretory cells',]$CellTypes <- 'epithelial progenitors'
+rownames(Tau) <- Tau$CellTypes
+
+#Ppi
+Ppi<-readRDS('~/zebrafish_tilapia_genes/gut_RNA_0724_Ppi_700.rds')
+Ppi$celltype <- unfactor(Ppi$celltype)
+Ppi[Ppi$celltype=='proliferating secretory cells',]$celltype <- 'epithelial progenitors'
+Ppi$celltype <- factor(Ppi$celltype,levels=CellTypes)
+ggplot(Ppi, aes(x=celltype,y=weightAve,fill=celltype)) + geom_boxplot(outlier.shape = NA) + theme_classic() + RotatedAxis() + scale_fill_manual(values=colours_CellTypes) + NoLegend() + xlab('') + ylab('Protein-protein interactions (PPI)') + coord_cartesian(ylim=c(0,500))
+
+Ppi <- Ppi %>% group_by(celltype) %>% summarise(mean = mean(weightAve))
+Ppi <- as.data.frame(Ppi)
+colnames(Ppi) <- c('CellTypes','Ppi')
+Ppi$CellTypes <- unfactor(Ppi$CellTypes)
+Ppi[Ppi$CellTypes=='proliferating secretory cells',]$CellTypes <- 'epithelial progenitors'
+rownames(Ppi) <- Ppi$CellTypes
+
+#Augur distances
+Augur <- readRDS('~/scRNA/Seurat/gut/integration/species/Augur/Augur_results_2000UMIsPerCell.rds')
+#saveRDS(Augur,'~/scRNA/Seurat/gut/integration/species/Augur/Augur_results_1000UMIsPerCell.rds')
+Augur <- readRDS('~/scRNA/Seurat/gut/integration/species/Augur/Augur_results_1000UMIsPerCell.rds')
+species_Augur <- readRDS('~/scRNA/Seurat/gut/integration/species/Augur/Augur_species_pairs.rds')
+species_augur_2000 <- readRDS('~/scRNA/Seurat/gut/integration/species/Augur/Augur_species_pairs_2000.rds')
+
+for (i in 1:length(Augur)) { Augur[[i]]$species <- species_augur_2000[[i]]}
+f5_dist_melt <- readRDS('~/f5.dists_melt_based_on_callability.rds')
+f5_dist_melt$speciesPair1 <- paste0(f5_dist_melt$var1,"_",f5_dist_melt$var2)
+f5_dist_melt$speciesPair2 <- paste0(f5_dist_melt$var2,"_",f5_dist_melt$var1)
+for (i in 1:length(Augur)) { 
+  if (Augur[[i]]$species %in% f5_dist_melt$speciesPair1) {
+    Augur[[i]]$dist <- f5_dist_melt[match(Augur[[i]]$species,f5_dist_melt$speciesPair1),]$cor
+  } else if (Augur[[i]]$species %in% f5_dist_melt$speciesPair2) {
+    Augur[[i]]$dist <- f5_dist_melt[match(Augur[[i]]$species,f5_dist_melt$speciesPair2),]$cor
+  }
+}
+
+Augur <- Augur[-184]
+Augur <- do.call('rbind',Augur)
+Augur$cell_type <- unfactor(Augur$cell_type)
+Augur[Augur$cell_type=='proliferating secretory cells',]$cell_type <- 'epithelial progenitors'
+Augur$cell_type <- factor(Augur$cell_type,levels=CellTypes)
+#remove B cells 2
+Augur <- Augur[Augur$cell_type!='B cells 2',]
+#remove Hapmic, Julorn, Trezeb, Telvit
+exclude_species <- c('Hapmic','Trezeb','Telvit','Julorn')
+Augur$sp1 <- unlist(lapply(Augur$species, function(x) strsplit(x,split='_')[[1]][[1]]))
+Augur$sp2 <- unlist(lapply(Augur$species, function(x) strsplit(x,split='_')[[1]][[2]]))
+Augur <- Augur[!(Augur$sp1 %in% exclude_species),]
+Augur <- Augur[!(Augur$sp2 %in% exclude_species),]
+ggplot(Augur,aes(x=cell_type,y=value,fill=cell_type)) + geom_boxplot() + scale_fill_manual(values=colours_CellTypes) + theme_classic() + NoLegend() + RotatedAxis()
+
+#what we need is a ratio from Augur, not absolute values!
+Augur <- Augur %>% group_by(cell_type) %>% summarise(mean = mean(value))
+Augur <- as.data.frame(Augur)
+colnames(Augur) <- c('CellTypes','Augur')
+Augur$CellTypes <- unfactor(Augur$CellTypes)
+Augur[Augur$CellTypes=='proliferating secretory cells',]$CellTypes <- 'epithelial progenitors'
+rownames(Augur) <- Augur$CellTypes
+
+
+#then assemble into one big matrix for PCA
+#then compute PCA into 2 dimensions only (instead of 5 initially)
+Tau <- Tau[Tau$CellTypes %in% Augur$CellTypes,]
+TAI <- TAI[TAI$CellTypes %in% Augur$CellTypes,]
+dNdS <- dNdS[dNdS$CellTypes %in% Augur$CellTypes,]
+distance <- distance[distance$CellTypes %in% Augur$CellTypes,]
+Ppi <- Ppi[Ppi$CellTypes %in% Augur$CellTypes,]
+
+TAI <- TAI[rownames(Tau),]
+dNdS <- dNdS[rownames(Tau),]
+distance <- distance[rownames(Tau),]
+Augur <- Augur[rownames(Tau),]
+Ppi <- Ppi[rownames(Tau),]
+
+
+df <- cbind(dNdS,Tau,TAI,distance,Augur,Ppi)
+df <- df[,c(1,2,4,6,8,10,12)]
+df <- df[rownames(df) != 'B cells 2',]
+
+#Then build a pca
+pca <- prcomp(df[,2:7],scale=T)
+
+
+autoplot(pca,label=T,loadings=T,
 
