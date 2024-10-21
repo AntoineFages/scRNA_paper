@@ -25,56 +25,29 @@ colnames(distance) <- c('CellTypes','distance')
 distance$CellTypes <- unfactor(distance$CellTypes)
 rownames(distance) <- distance$CellTypes
 
-#dNdS
-dNdS <- readRDS('~/zebrafish_tilapia_genes/gut_dNdS_0423.rds')
-dNdS <- dNdS %>% group_by(celltype) %>% summarise(mean = mean(weightAve))
-dNdS <- as.data.frame(dNdS)
-colnames(dNdS) <- c('CellTypes','dNdS')
-dNdS$CellTypes <- unfactor(dNdS$CellTypes)
-dNdS[dNdS$CellTypes=='proliferating secretory cells',]$CellTypes <- 'epithelial progenitors'
-rownames(dNdS) <- dNdS$CellTypes
-
 #TAI
-TAI<-readRDS('~/zebrafish_tilapia_genes/gut_RNA_0324_TAI.rds')
-TAI$celltype <- unfactor(TAI$celltype)
-TAI[TAI$celltype=='proliferating secretory cells',]$celltype <- 'epithelial progenitors'
-TAI$celltype <- factor(TAI$celltype,levels=CellTypes)
-ggplot(TAI, aes(x=celltype,y=weightAve,fill=celltype)) + geom_boxplot(outlier.shape = NA) + theme_classic() + RotatedAxis() + scale_fill_manual(values=colours_CellTypes) + NoLegend() + xlab('') + ylab('Transcriptome Age Index (TAI)') + coord_cartesian(ylim=c(3,12))
-
+TAI<-readRDS(paste0(path_to_output_of_transcriptome_characterisation,'TAI.rds'))
 TAI <- TAI %>% group_by(celltype) %>% summarise(mean = mean(weightAve))
 TAI <- as.data.frame(TAI)
 colnames(TAI) <- c('CellTypes','TAI')
-TAI$CellTypes <- unfactor(TAI$CellTypes)
-TAI[TAI$CellTypes=='proliferating secretory cells',]$CellTypes <- 'epithelial progenitors'
-rownames(TAI) <- TAI$CellTypes
 
 #Tau
-Tau<-readRDS('~/zebrafish_tilapia_genes/gut_RNA_0324_TauTissuesLog.rds')
-Tau$celltype <- unfactor(Tau$celltype)
-Tau[Tau$celltype=='proliferating secretory cells',]$celltype <- 'epithelial progenitors'
-Tau$celltype <- factor(Tau$celltype,levels=CellTypes)
-ggplot(Tau, aes(x=celltype,y=weightAve,fill=celltype)) + geom_boxplot(outlier.shape = NA) + theme_classic() + RotatedAxis() + scale_fill_manual(values=colours_CellTypes) + NoLegend() + xlab('') + ylab('Tissue specificity (Tau)') + coord_cartesian(ylim=c(.15,.65))
-
+Tau<-readRDS(paste0(path_to_output_of_transcriptome_characterisation,'Tau.rds'))
 Tau <- Tau %>% group_by(celltype) %>% summarise(mean = mean(weightAve))
 Tau <- as.data.frame(Tau)
 colnames(Tau) <- c('CellTypes','Tau')
-Tau$CellTypes <- unfactor(Tau$CellTypes)
-Tau[Tau$CellTypes=='proliferating secretory cells',]$CellTypes <- 'epithelial progenitors'
-rownames(Tau) <- Tau$CellTypes
 
-#Ppi
-Ppi<-readRDS('~/zebrafish_tilapia_genes/gut_RNA_0724_Ppi_700.rds')
-Ppi$celltype <- unfactor(Ppi$celltype)
-Ppi[Ppi$celltype=='proliferating secretory cells',]$celltype <- 'epithelial progenitors'
-Ppi$celltype <- factor(Ppi$celltype,levels=CellTypes)
-ggplot(Ppi, aes(x=celltype,y=weightAve,fill=celltype)) + geom_boxplot(outlier.shape = NA) + theme_classic() + RotatedAxis() + scale_fill_manual(values=colours_CellTypes) + NoLegend() + xlab('') + ylab('Protein-protein interactions (PPI)') + coord_cartesian(ylim=c(0,500))
-
+#PPI
+Tau<-readRDS(paste0(path_to_output_of_transcriptome_characterisation,'PPI.rds'))
 Ppi <- Ppi %>% group_by(celltype) %>% summarise(mean = mean(weightAve))
 Ppi <- as.data.frame(Ppi)
 colnames(Ppi) <- c('CellTypes','Ppi')
-Ppi$CellTypes <- unfactor(Ppi$CellTypes)
-Ppi[Ppi$CellTypes=='proliferating secretory cells',]$CellTypes <- 'epithelial progenitors'
-rownames(Ppi) <- Ppi$CellTypes
+
+#dNdS
+Tau<-readRDS(paste0(path_to_output_of_transcriptome_characterisation,'dNdS.rds'))
+dNdS <- dNdS %>% group_by(celltype) %>% summarise(mean = mean(weightAve))
+dNdS <- as.data.frame(dNdS)
+colnames(dNdS) <- c('CellTypes','dNdS')
 
 #Augur distances
 Augur <- readRDS('~/scRNA/Seurat/gut/integration/species/Augur/Augur_results_2000UMIsPerCell.rds')
