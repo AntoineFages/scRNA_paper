@@ -2,4 +2,7 @@
 #Script 10. R script for running scWGCNA
 
 library(Seurat)
+library(WGCNA)
 library(scWGCNA)
+
+
