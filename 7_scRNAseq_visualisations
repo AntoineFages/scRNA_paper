@@ -2,6 +2,8 @@
 #Script 7. R script for basic visualisations of scRNAseq integrated dataset
 
 library(Seurat)
+library(sparseMatrixStats)
+library(SingleCellExperiment)
 library(BayesPrism)
 library(ggplot2)
 library(viridis)
@@ -10,6 +12,9 @@ library(scibet)
 library(dplyr)
 library(DESeq2)
 library(scuttle)
+library(pheatmap)
+library(reshape2)
+library(purrr)
 
 ##### Read input files #####
 #Custom PCA script and script to plot relative cell abundances
