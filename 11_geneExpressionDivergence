@@ -2,14 +2,12 @@
 #Script 11. R script for calculating interspecific gene expression divergence
 
 library(Seurat)
-library(BayesPrism)
+library(sparseMatrixStats)
+library(SingleCellExperiment)
 library(ggplot2)
 library(viridis)
-library(MetaNeighbor)
-library(scibet)
-library(dplyr)
-library(DESeq2)
 library(scuttle)
+library(Augur)
 
 ##### Read input files #####
 #Read Seurat object
@@ -91,7 +89,7 @@ cpm_by_CellType[[10]] <- cpm_by_CellType[[10]][,colnames(cpm_by_CellType[[10]])!
 cpm_by_CellType[[10]] <- cpm_by_CellType[[10]][,colnames(cpm_by_CellType[[10]])!='Hapmic']
 cpm_by_CellType[[20]] <- cpm_by_CellType[[20]][,colnames(cpm_by_CellType[[20]])!='Hapmic']
 
-##### EVEE-tool MSGED #####
+##### Method 1. EVEE-tool MSGED #####
 #EVEE-tool function to calculate Mean Squared Gene Expression Distance across species, within each cell population (MSGED)
 EVEE_distance_analysis <- function(exp){
   exp <- exp[,colnames(exp)!='Orenil']
@@ -192,6 +190,16 @@ for (i in 1:length(df_celltype)) {
   predmod_data$logExp = predict(tmpmod, newdata=predmod_data)
   points(exp(predmod_data$logdist), exp(predmod_data$logExp), type="l", col=i,lwd=2,lty=2)
 }
+
+
+##### Method 2. Augur #####
+#As input, Seurat object with maximum 2000 UMIs per cell
+my.se.down <- readRDS(paste0(path_to_output_of_integration,'integrated_dataset_final_down2000UMIsPerCell.rds'))
+count.matrix <- GetAssayData(my.se.down,assay='RNA',slot='counts')
+meta.data <- my.se.down@meta.data
+
+augur <- calculate_auc(count.matrix, n_threads=8, meta=meta.data, cell_type_col = "CellTypes", label_col = "orig.ident.2",subsample_size=10,min_cells=10,n_subsamples=40,show_progress=TRUE)
+
 
 
 
