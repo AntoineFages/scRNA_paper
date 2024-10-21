@@ -1,1 +1,6 @@
+library(Seurat)
+
+#Read Seurat object
+my.se <- readRDS(paste0(path_to_output_of_integration,'integrated_dataset_final.rds'))
+Idents(my.se)<-my.se$CellTypes
 
