@@ -104,8 +104,10 @@ CellTypes_keep <- c('enterocytes 1','enterocytes 2','LREs','BEST4 cells','prolif
 data_filter <- data[data$celltype %in% CellTypes_keep,]
 
 #Plot of proportions of epithelial cell populations
-ggplot(data_filter,aes(x=part,y=fraction,color=species)) + geom_point() + facet_wrap(~celltype,ncol=3) + geom_line() + theme_classic() + 
-  xlab('gut part') + ylab('estimated cell type fraction (%)') + scale_color_manual(values=c("#166533","#682E7A","#C588BB"))
+ggplot(data_filter,aes(x=part,y=fraction,color=species)) + geom_point() + 
+  facet_wrap(~celltype,ncol=3) + geom_line() + theme_classic() + 
+  xlab('gut part') + ylab('estimated cell type fraction (%)') + 
+  scale_color_manual(values=c("#166533","#682E7A","#C588BB"))
 
 
 
