@@ -148,7 +148,7 @@ function_pseudobulk_normalisation <- function(my.se,minNcells) {
   ei <- data.frame(meta.data_all[m, ], n_cells, row.names = NULL)
 
   #Subset metadata to only include the cluster and sample IDs to aggregate across
-  groups_all<-meta.data_all[,c("CellTypes","orig.ident.2")]
+  groups_all <- meta.data_all[,c("CellTypes","orig.ident.2")]
 
   #Not every cluster is present in all samples; create a vector that represents how to split samples
   splitf <- sapply(stringr::str_split(rownames(pb_all), pattern = "_", n = 2), `[`, 1)
