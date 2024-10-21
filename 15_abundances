@@ -120,7 +120,7 @@ df <- df %>%
     y_end = as.numeric(predictor) + (rsquare/2 * sin(orientation * pi / 180))
   )
 
-#Plot this
+#Command to plot
 ggplot(df,aes(x=celltype,y=predictor,fill=logpval,size=rsquare)) + theme_classic() + geom_point() +
   scale_size_continuous(limits = c(0,0.45)) + geom_point(data=df,aes(color=sig,shape=sig,stroke=sig)) + 
   scale_shape_manual(values=c(21,21,21)) + scale_color_manual(values=c('red','grey80','red')) + scale_discrete_manual(aesthetics ='stroke',values=c(1,0.1,1)) +
