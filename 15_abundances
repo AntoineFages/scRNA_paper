@@ -8,6 +8,9 @@ library(ggplot2)
 library(geiger)
 library(caper)
 library(plyr)
+library(pracma)
+library(dplyr)
+library(tidyr)
 
 ##### Read input files #####
 #Custom PCA script and script to plot relative cell abundances
@@ -95,5 +98,39 @@ slope <- lapply(sum_lambda, function(x) unlist(lapply(x, function(y) y$coefficie
 delta <- c(abs(max(ecological_predictors$d15N) - min(ecological_predictors$d15N)),abs(max(ecological_predictors$d13C) - min(ecological_predictors$d13C)),
           abs(max(ecological_predictors$oral_PC1) - min(ecological_predictors$oral_PC1)), abs(max(ecological_predictors$LPJ_PC2) - min(ecological_predictors$LPJ_PC2)),
           abs(max(ecological_predictors$ratio) - min(ecological_predictors$ratio)),abs(max(ecological_predictors$diet_ecology_vector) - min(ecological_predictors$diet_ecology_vector)) )
+
+#Create dataframe with all these values
+df <- data.frame(rsquare = unlist(rsquare), pval = unlist(pval), slope=unlist(slope), celltype = rep(name_tests,each=6), predictor = rep(name_predictors,10),delta = rep(delta,10))
+df$logpval <- -log10(df$pval)
+df$predictor <- factor(df$predictor,levels=rev(c('d15N','normalised_gut_length','LPJ_PC2','diet_ecology_vector','d13C','oral_PC1')))
+df$celltype <- factor(df$celltype, levels=c('epiRatio','enterocytes_1','enterocytes_2','LREs','BEST4_cells','proliferating_secretory_cells','goblet_cells','tuft_cells','enteroendocrine_cells','epithelial_DCs'))
+
+#Add whether correlations are statistically significant or not
+df$sig <- 'none'
+df[df$slope < 0 & df$pval<0.05,]$sig <- 'negative'
+df[df$slope > 0 & df$pval<0.05,]$sig <- 'positive'
+
+#Get orientation based on calculated slope
+df$orientation <- rad2deg(atan(df$slope)*df$delta)
+df <- df %>%
+  mutate(
+    x_start = as.numeric(celltype) - (rsquare/2 * cos(orientation * pi / 180)),
+    x_end = as.numeric(celltype) + (rsquare/2 * cos(orientation * pi / 180)),
+    y_start = as.numeric(predictor) - (rsquare/2 * sin(orientation * pi / 180)),
+    y_end = as.numeric(predictor) + (rsquare/2 * sin(orientation * pi / 180))
+  )
+
+#Plot this
+ggplot(df,aes(x=celltype,y=predictor,fill=logpval,size=rsquare)) + theme_classic() + geom_point() +
+  scale_size_continuous(limits = c(0,0.45)) + geom_point(data=df,aes(color=sig,shape=sig,stroke=sig)) + 
+  scale_shape_manual(values=c(21,21,21)) + scale_color_manual(values=c('red','grey80','red')) + scale_discrete_manual(aesthetics ='stroke',values=c(1,0.1,1)) +
+  scale_fill_gradient2(low="white",mid="grey",high="black",midpoint=1.5,limits=c(0,3)) + 
+  scale_x_discrete(labels=c('absorptive cells','enterocytes 1','enterocytes 2','lysosome-rich enterocytes','BEST4 cells',
+                            'epithelial progenitors','goblet cells','tuft cells','enteroendocrine cells','epithelial dendritic cells')) +
+  geom_segment(data=df, aes(x = x_start, y = y_start, xend = x_end, yend = y_end),linewidth=.5,color='white',arrow = arrow(length = df$rsquare*unit(0.5, "cm"))) + 
+  RotatedAxis() + scale_size(range=c(0,10))
+
+
+
 
 
