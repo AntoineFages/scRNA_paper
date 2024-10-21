@@ -198,7 +198,18 @@ my.se.down <- readRDS(paste0(path_to_output_of_integration,'integrated_dataset_f
 count.matrix <- GetAssayData(my.se.down,assay='RNA',slot='counts')
 meta.data <- my.se.down@meta.data
 
+path_to_Augur_output <- 'XXX' #path to put the output of Augur
+
+exclude.cellpop <- c('eosinophils','T cells 5','B cells 2','RBCs','endothelial cells','cycling cells')
+meta.data <- meta.data[meta.data$orig.ident.2 !='Orenil',]
+meta.data <- meta.data[!(meta.data$CellTypes %in% exclude.celltypes),]
+meta.data <- meta.data[meta.data$orig.ident.2 %in% species1 | meta.data$orig.ident.2 %in% species2,]
+count.matrix <- count.matrix[,colnames(count.matrix) %in% rownames(meta.data)]
+
+for (species1 in 
+
 augur <- calculate_auc(count.matrix, n_threads=8, meta=meta.data, cell_type_col = "CellTypes", label_col = "orig.ident.2",subsample_size=10,min_cells=10,n_subsamples=40,show_progress=TRUE)
+saveRDS(augur, paste0(path_to_Augur_output,'Augur_',species1,'_',species2,'.rds'))
 
 
 
