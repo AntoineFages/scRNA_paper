@@ -3,6 +3,16 @@
 
 library(Seurat)
 library(mvMORPH)
+library(ggplot)
+library(ggtree)
+library(dplyr)
+library(stats)
+library(ape)
+library(reshape2)
+library(viridis)
+library(cowplot)
+library(grid)
+library(gridExtra)
 
 ##### Read input files #####
 
@@ -136,21 +146,112 @@ fit_lambda_list_spe <- lapply(seq_along(length(lograwCounts_spe)), function(i) f
 fit_lambda_list_modules <- lapply(seq_along(length(lograwCounts_modules)), function(i) fit_function_unique_predictor_lambda(lograwCounts_modules,ecological_predictors,tree,i))
 
 #Function to run MANOVA on each fitted object
+function_manova <- function(fit.list) {
+        manova.d15N <- manova.gls(fit.list[[1]], type='II',test='Pillai',nperm=1000L,ncores=40L)
+        manova.d13C <- manova.gls(fit.list[[2]], type='II',test='Pillai',nperm=1000L,ncores=40L)
+        manova.gutRatio <- manova.gls(fit.list[[3]], type='II',test='Pillai',nperm=1000L,ncores=40L)
+        manova.LPJ_PC2 <- manova.gls(fit.list[[4]], type='II',test='Pillai',nperm=1000L,ncores=40L)
+        manova.oral_PC1 <- manova.gls(fit.list[[5]], type='II',test='Pillai',nperm=1000L,ncores=40L)
+        manova.diet_ecology_vector <- manova.gls(fit.list[[6]], type='II',test='Pillai',nperm=1000L,ncores=40L)
+        list.manova <- list(manova.d15N,manova.d13C,manova.gutRatio,manova.LPJ_PC2,manova.oral_PC1,manova.diet_ecology_vector)
+        return(list.manova)
+}
+
+#Run the function for each gene set
+manova_lambda_global <- lapply(seq_along(length(lograwCounts_20Prct)), function(i) function_manova(fit_lambda_list_global[[i]]))
+manova_lambda_spe <- lapply(seq_along(length(lograwCounts_spe)), function(i) function_manova(fit_lambda_list_spe[[i]]))
+manova_lambda_modules <- lapply(seq_along(length(lograwCounts_modules)), function(i) function_manova(fit_lambda_list_modules[[i]]))
+
+#Function to invert order of cell populations and predictors in manova lists
+function_invert <- function(manova_list){
+    result <- list()
+    for (i in 1:length(manova_list[[1]])) {
+        result[[i]] <- list()
+        for (j in 1:length(manova_list)) {
+              result[[i]][[j]] <- manova_list[[j]][[i]]
+        }
+    }
+}
+
+#Use this function for all 3 gene sets
+manova_lambda_global <- function_invert(manova_lambda_global)
+manova_lambda_spe <- function_invert(manova_lambda_spe)
+manova_lambda_modules <- function_invert(manova_lambda_modules)
 
 
+##### Plot results of multivariate phylogenetic regressions ##### 
+name_predictors <- c('d15N','d13C','gut_ratio','LPJ_PC2','oral_PC1','diet_ecology_vector')
 
+#Get p-values
+pval_global <- lapply(manova_lambda_global, function(x) unlist(lapply(x, function(y) y$pvalue)))
+pval_spe <- lapply(manova_lambda_spe, function(x) unlist(lapply(x, function(y) y$pvalue)))
+pval_modules <- lapply(manova_lambda_modules, function(x) unlist(lapply(x, function(y) y$pvalue)))
 
+#Get Pillai's statistics
+Pillai_global <- lapply(manova_lambda_global, function(x) unlist(lapply(x, function(y) y$stat)))
+Pillai_spe <- lapply(manova_lambda_spe, function(x) unlist(lapply(x, function(y) y$stat)))
+Pillai_modules <- lapply(manova_lambda_modules, function(x) unlist(lapply(x, function(y) y$stat)))
 
+#Combine p-values in data frames
+df_pval_global <- do.call('rbind',lapply(seq_along(pval_global), function(i) data.frame(celltype=CellTypes,pval=pval_global[[i]],predictor=name_predictors[[i]])))
+df_pval_global$geneset <- 'global'
+df_pval_spe <- do.call('rbind',lapply(seq_along(pval_spe), function(i) data.frame(celltype=CellTypes,pval=pval_spe[[i]],predictor=name_predictors[[i]])))
+df_pval_spe$geneset <- 'spe'
+df_pval_modules <- do.call('rbind',lapply(seq_along(pval_modules), function(i) data.frame(celltype=CellTypes,pval=pval_modules[[i]],predictor=name_predictors[[i]])))
+df_pval_modules$geneset <- 'modules'
 
+#Combine Pillai's statistics in data frames
+df_Pillai_global <- do.call('rbind',lapply(seq_along(Pillai_global), function(i) data.frame(celltype=CellTypes,stat=Pillai_global[[i]],predictor=name_predictors[[i]])))
+df_Pillai_global$geneset <- 'global'
+df_Pillai_spe <- do.call('rbind',lapply(seq_along(Pillai_spe), function(i) data.frame(celltype=CellTypes,stat=Pillai_spe[[i]],predictor=name_predictors[[i]])))
+df_Pillai_spe$geneset <- 'spe'
+df_Pillai_modules <- do.call('rbind',lapply(seq_along(Pillai_modules), function(i) data.frame(celltype=CellTypes,stat=Pillai_modules[[i]],predictor=name_predictors[[i]])))
+df_Pillai_modules$geneset <- 'modules'
 
+#Combine in one dataframe per gene set
+levels_predictors <- c('d15N','gut_ratio','LPJ_PC2','diet_ecology_vector','d13C','oral_PC1')
+function_combine <- function(df_Pillai, df_pval,) {
+    df <- cbind(df_Pillai,df_pval)
+    df$celltype <- factor(df$celltype)
+    df$logpval <- -log10(df$pval)
+    df <- df[,c(1,2,3,4,9)]  #Keep only relevant columns
+    df$sig <- FALSE
+    df[df$logpval>1.3,]$sig <- TRUE #mark statistically significant correlations
+    df$predictor <- factor(df$predictor,levels=levels_predictors)
+    return(df)
+}
 
+#Use this function on each gene set
+df_global <- function_combine(df_Pillai_global,df_pval_global)
+df_spe <- function_combine(df_Pillai_spe,df_pval_spe)
+df_modules <-  function_combine(df_Pillai_modules,df_pval_modules)
 
+#Plot DotPlot and hierarchical clustering based on -10log(pval)
+function_plot <- function(df) {
+    df2 <- df[,-c(2,4,6)]
+    df2 <- dcast(df2,formula = celltype ~ predictor)
+    rownames(df2) <- df2$celltype
+    df2 <- df2[,-c(1)]
+    clust <- hclust(dist(df2 %>% as.matrix())) # hclust with distance matrix
+    ddgram <- as.dendrogram(clust) # create dendrogram
+    ggtree_plot <- ggtree::ggtree(ddgram)  + coord_flip() + scale_x_reverse() #plot hierarchical clustering
 
+    #plot the main plot
+    main_plot <- ggplot(df,aes(x=factor(celltype,levels=rev(get_taxa_name(ggtree_plot))),y=factor(predictor,levels=levels_predictors),color=logpval,size=stat)) + 
+    theme_classic() + geom_point() +scale_size_continuous(limits = c(0.3,1)) + geom_point(data=df,col='red',stroke=1,aes(shape=sig)) + 
+    scale_shape_manual(values=c(NA,21)) + scale_color_gradient2(low="white",mid="grey",high="black",midpoint=1.5,limits=c(0,3)) + RotatedAxis() + 
+    xlab('') + ylab('') + theme(axis.line=element_blank(),axis.ticks=element_blank()) + NoLegend()
 
+    #Assemble and print the two plots
+    print(plot_grid(ggtree_plot, main_plot, nrow = 2, rel_heights = c(0.2,2), align = 'v'))
+}
 
+#Use this function on each gene set to plot 3 dot plots
+function_plot(df_global)
+function_plot(df_spe)
+function_plot(df_modules)
 
-
-
+    
 
 
 
