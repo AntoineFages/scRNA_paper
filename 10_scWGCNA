@@ -4,5 +4,65 @@
 library(Seurat)
 library(WGCNA)
 library(scWGCNA)
+library(pheatmap)
+
+#Read Seurat object
+my.se <- readRDS(paste0(path_to_output_of_integration,'integrated_dataset_final.rds'))
+
+##### scWGCNA #####
+DefaultAssay(my.se)<-"RNA"
+
+#Get pseudocells
+my.se <- RunPCA(my.se,npcs=100)
+my.se.pcells <- calculate.pseudocells(s.cells = my.se, seeds=0.2,nn=100,reduction="pca",dims=1:100)
+
+saveRDS(my.se.pcells, file= paste0(PATH,'pcells_AdultGut_',format(Sys.Date(), "%d%m%y"),'.rds'))
+
+var.feat <- VariableFeatures(my.se)
+
+#Run scWGCNA
+my.se.scWGCNA <-  run.scWGCNA(p.cells = my.se.pcells,s.cells = my.se, is.pseudocell = T,features = var.feat)
+
+#Average expression
+module_expression <- scW.p.expression(s.cells=my.se,scWGCNA.data=my.se.scWGCNA,modules="all",reduction="umap",ncol=6)
+
+#Create networks
+my.se.scWGCNA <- scWGCNA.networks(scWGCNA.data = my.se.scWGCNA)
 
 
+##### Heatmap of module pseudobulk average expression #####
+#Get dynamic colors
+my.dc <- my.se.scWGCNA$dynamicCols
+  
+#Module Gene Correlation
+my.datExpr <- data.frame(my.se@assays$RNA@data)
+my.MEs <- moduleEigengenes(t(my.datExpr[names(my.dc),]), colors = my.dc)
+
+#Make the mean per cell clusters
+my.modavg <- aggregate(my.MEs$averageExpr, list(my.se@meta.data$CellTypes), mean)
+rownames(my.modavg) <- my.modavg$Group.1
+my.wgmat <- my.modavg
+
+#Get rid of the extra column
+my.wgmat <- data.frame(my.wgmat[,-1])
+
+#Restore the rownames
+rownames(my.wgmat) <- rownames(my.modavg)
+
+#Prepare for heatmap
+my.colcols = as.matrix(names(table(my.se.scWGCNA$dynamicCols)))
+avg.mod.eigengenes <- my.se.scWGCNA$sc.MEList$averageExpr
+annot_name <- data.frame(row.names= my.colcols[,1], "Modules" = my.colcols[,1])
+colors_modules <- my.colcols[,1]
+names(colors_modules) <- colors_modules
+annot_col <- list(CellTypes=colours_CellTypes,Modules=colors_modules)
+colnames(my.wgmat) <- my.colcols[,1]
+
+#Plot heatmap of module pseudobulk average expression
+pheatmap(as.matrix(my.wgmat),
+                  col = colorRampPalette(c("dodgerblue4","dodgerblue", "white", "red", "darkred"))(n = 1000),
+                  trace="none",
+                  scale = "row",
+                  margins = c(10,10),
+                  ColSideColors = my.colcols,border_color=NA,
+                  annotation_row = annot_name,annotation_col=annot_name,annotation_colors = annot_col)
