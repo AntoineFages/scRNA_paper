@@ -136,6 +136,8 @@ EVEE_distance_analysis <- function(exp){
 }
 
 distances_cpm <- lapply(seq_along(cpm_by_CellType), function(j) EVEE_distance_analysis(cpm_by_CellType[[j]]))
+saveRDS(distances_cpm,paste0(path_to_output_of_integration,'distances_cpm.rds'))
+
 
 ##### Model MSGED #####
 #Model MSGED as a function of genomic distance (substitutions)
