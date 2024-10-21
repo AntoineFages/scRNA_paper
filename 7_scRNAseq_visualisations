@@ -211,55 +211,47 @@ function_pseudobulk_normalisation <- function(my.se,minNcells) {
 dds <- function_pseudobulk_normalisation(my.se,20)[[1]]
 metadata <- function_pseudobulk_normalisation(my.se,20)[[2]]
 
+
 ##### pseudobulk PCA #####
 pca_function <- function(dds,metadata) {
   vst <- varianceStabilizingTransformation(dds)
 
-
-
-  ### plot PCA
-  ### Create tribes and colours
+  #Create tribes and colours
   colours_tribe<-c("#59595C","#F04D29","#9AB9D9","#682E7A","#166533","#C588BB","#535CA9","#845F25","#FBAC43","#FDDF13","#959170","#242626","#AE262A","#86C773")
   names_colours_tribe<-c("boule","cypri","ectod","eretm","haplo","lampr","limno","oreoc","peris","cypho","trema","bathy","bentho","troph")
   names(colours_tribe)<-names_colours_tribe
 
   pcaData12all<-plotPCA.12(vst,intgroup=c("tribe"),returnData=TRUE)
-  pcaData23all<-plotPCA.23(vst,intgroup=c("tribe"),returnData=TRUE)
   pcaData13all<-plotPCA.13(vst,intgroup=c("tribe"),returnData=TRUE)
   pcaData14all<-plotPCA.14(vst,intgroup=c("tribe"),returnData=TRUE)
 
   percentVar12all<-round(100*attr(pcaData12all,"percentVar"))
-  percentVar23all<-round(100*attr(pcaData23all,"percentVar"))
   percentVar13all<-round(100*attr(pcaData13all,"percentVar"))
   percentVar14all<-round(100*attr(pcaData14all,"percentVar"))
 
   pcaData12all$CellTypes<-factor(metadata$CellTypes,levels=CellTypes)
   pcaData13all$CellTypes<-factor(metadata$CellTypes,levels=CellTypes)
-  pcaData23all$CellTypes<-factor(metadata$CellTypes,levels=CellTypes)
   pcaData14all$CellTypes<-factor(metadata$CellTypes,levels=CellTypes)
 
   pcaData12all$tribe<-metadata$tribe
   pcaData13all$tribe<-metadata$tribe
-  pcaData23all$tribe<-metadata$tribe
   pcaData14all$tribe<-metadata$tribe
 
-  plot5<-ggplot(pcaData12all,aes(PC1,PC2))+geom_point(size=3,aes(shape=tribe,color=CellTypes)) + scale_color_manual(values=colours_CellTypes) + scale_shape_manual(values=seq(0,13)) + xlab(paste0("PC1: ",percentVar12all[1],"% variance")) + ylab(paste0("PC2: ",percentVar12all[2],"% variance")) + coord_fixed() +  theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
-  #plot6<-ggplot(pcaData23all,aes(PC2,PC3))+geom_point(size=3,aes(shape=tribe,color=CellTypes)) + scale_color_manual(values=colours_CellTypes) + scale_shape_manual(values=seq(0,13)) + xlab(paste0("PC2: ",percentVar23all[1],"% variance")) + ylab(paste0("PC3: ",percentVar23all[2],"% variance")) + coord_fixed() +  theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
-  plot6<-ggplot(pcaData13all,aes(PC1,PC3))+geom_point(size=3,aes(shape=tribe,color=CellTypes)) + scale_color_manual(values=colours_CellTypes) + scale_shape_manual(values=seq(0,13)) + xlab(paste0("PC1: ",percentVar13all[1],"% variance")) + ylab(paste0("PC3: ",percentVar13all[3],"% variance")) + coord_fixed() +  theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
-  plot7<-ggplot(pcaData14all,aes(PC1,PC4))+geom_point(size=3,aes(shape= tribe,color=CellTypes)) + scale_color_manual(values=colours_CellTypes) + scale_shape_manual(values=seq(0,13)) + xlab(paste0("PC1: ",percentVar14all[1],"% variance")) + ylab(paste0("PC4: ",percentVar14all[4],"% variance")) + coord_fixed() +  theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+  print(ggplot(pcaData12all,aes(PC1,PC2))+geom_point(size=3,aes(shape=tribe,color=CellTypes)) + scale_color_manual(values=colours_CellTypes) + 
+  scale_shape_manual(values=seq(0,13)) + xlab(paste0("PC1: ",percentVar12all[1],"% variance")) + ylab(paste0("PC2: ",percentVar12all[2],"% variance")) + 
+  coord_fixed() +  theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")))
 
-  legend <- get_legend(plot5)
-  plot5 <- plot5 + theme(legend.position="none")
-  plot6 <- plot6 + theme(legend.position="none")
-  plot7 <- plot7 + theme(legend.position="none")
+  print(ggplot(pcaData13all,aes(PC1,PC3))+geom_point(size=3,aes(shape=tribe,color=CellTypes)) + scale_color_manual(values=colours_CellTypes) + 
+  scale_shape_manual(values=seq(0,13)) + xlab(paste0("PC1: ",percentVar13all[1],"% variance")) + ylab(paste0("PC3: ",percentVar13all[3],"% variance")) + 
+  coord_fixed() +  theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")))
 
-  grid.arrange(plot5, plot6, plot7, NULL,legend, ncol=3, top='top 12000 variable genes',layout_matrix = cbind(c(1,2), c(3,4),c(5,5)),widths = c(4,4,1))
+  print(ggplot(pcaData14all,aes(PC1,PC4))+geom_point(size=3,aes(shape= tribe,color=CellTypes)) + scale_color_manual(values=colours_CellTypes) + 
+  scale_shape_manual(values=seq(0,13)) + xlab(paste0("PC1: ",percentVar14all[1],"% variance")) + ylab(paste0("PC4: ",percentVar14all[4],"% variance")) + 
+  coord_fixed() +  theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")))
+
 }
 
-
-
-
-
+pca_function(dds, metadata)
 
 
 ##### Gene Specificity Index (gsi) #####
