@@ -200,16 +200,27 @@ meta.data <- my.se.down@meta.data
 
 path_to_Augur_output <- 'XXX' #path to put the output of Augur
 
+#Species in dataset
+species_included<-unique(my.se@meta.data$orig.ident.2)
+
+#Exclude cell populations with too few species represented by 20 cells or more
 exclude.cellpop <- c('eosinophils','T cells 5','B cells 2','RBCs','endothelial cells','cycling cells')
 meta.data <- meta.data[meta.data$orig.ident.2 !='Orenil',]
 meta.data <- meta.data[!(meta.data$CellTypes %in% exclude.celltypes),]
-meta.data <- meta.data[meta.data$orig.ident.2 %in% species1 | meta.data$orig.ident.2 %in% species2,]
-count.matrix <- count.matrix[,colnames(count.matrix) %in% rownames(meta.data)]
 
-for (species1 in 
+#Run Augur for each pair of species, across all remaining 18 cell populations
+for (species1 in species_included){
+    for (species2 in species_included){
+        if (species1 != species2) {
+            meta.data.aux <- meta.data[meta.data$orig.ident.2 %in% species1 | meta.data$orig.ident.2 %in% species2,]
+            count.matrix.aux <- count.matrix[,colnames(count.matrix) %in% rownames(meta.data.aux)]
+            augur <- calculate_auc(count.matrix.aux, n_threads=8, meta=meta.data.aux, cell_type_col = "CellTypes", label_col = "orig.ident.2",subsample_size=10,min_cells=10,n_subsamples=40,show_progress=TRUE)
+            saveRDS(augur, paste0(path_to_Augur_output,'Augur_',species1,'_',species2,'.rds'))
+        }
+    }
+}
 
-augur <- calculate_auc(count.matrix, n_threads=8, meta=meta.data, cell_type_col = "CellTypes", label_col = "orig.ident.2",subsample_size=10,min_cells=10,n_subsamples=40,show_progress=TRUE)
-saveRDS(augur, paste0(path_to_Augur_output,'Augur_',species1,'_',species2,'.rds'))
+
 
 
 
