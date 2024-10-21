@@ -19,6 +19,9 @@ source('plotCellTypeProps.R')
 #Read Seurat object
 my.se <- readRDS(paste0(path_to_output_of_integration,'integrated_dataset_final.rds'))
 
+#Read meta data
+coldata<-as.data.frame(read.csv('XXX')) #coldata containing meta data about samples
+
 #Define cell population colours
 CellTypes<-c('enterocytes 1','enterocytes 2','LREs','BEST4 cells','proliferating secretory cells','goblet cells','Tuft cells','enteroendocrine cells','epithelial DCs','DCs','macrophages 1','macrophages 2','eosinophils','T cells 1','T cells 2','T cells 3','T cells 4','T cells 5','B cells 1','B cells 2','RBCs','mesenchymal cells','endothelial cells','cycling cells')
 colours_CellTypes<-c("#FF7F00","#FE9F38","#FDBF6F","#FED47D","#1F78B4","#5299C6","#84B9D7","#A6CEE3","#B8C0DD","#CAB2D6", "#B295C7","#9A78B8","#6A3D9A","#D6EE91","#CAE98F","#BEE48C","#B2DF8A","#A0D67C","#33A02C","#33A04C","#E31A1C","#FB9A99","#F18499","grey20")
@@ -132,51 +135,6 @@ function_pseudobulk_normalisation <- function(my.se,minNcells) {
   #Create single cell experiment object
   sce_all <- SingleCellExperiment(assays=list(counts=counts_all),colData=meta.data_all)
 
-  #Named vector of cluster names
-  kids <- purrr::set_names(CellTypes)
-
-  #Named vector of sample names
-  sids <- purrr::set_names(species_included)
-
-  #Turn named vector into a numeric vector of number of cells per sample
-  n_cells <- as.numeric(table(meta.data_all$orig.ident.2))
-
-  #Determine how to reoder the samples (rows) of the metadata to match the order of sample names in sids vector
-  m <- match(sids, meta.data_all$orig.ident.2)
-
-  #Create the sample level metadata by combining the reordered metadata with the number of cells corresponding to each sample.
-  ei <- data.frame(meta.data_all[m, ], n_cells, row.names = NULL)
-
-  #Subset metadata to only include the cluster and sample IDs to aggregate across
-  groups_all <- meta.data_all[,c("CellTypes","orig.ident.2")]
-
-  #Not every cluster is present in all samples; create a vector that represents how to split samples
-  splitf <- sapply(stringr::str_split(rownames(pb_all), pattern = "_", n = 2), `[`, 1)
-
-  #Turn into a list and split the list into components for each cluster and transform, so rows are genes and columns are samples and make rownames as the sample IDs
-  pb_all <- split.data.frame(pb_all, factor(splitf)) %>% lapply(function(u) set_colnames(t(u),stringr::str_extract(rownames(u), "(?<=_)[:alnum:]+")))
-
-  #Prepare dataframe for plotting
-  get_sample_ids <- function(x){
-    pb_all[[x]] %>% colnames()
-  }
-  de_samples <- purrr::map(1:length(kids), get_sample_ids) %>% unlist()
-
-  #Get cluster IDs for each of the samples
-  samples_list <- purrr::map(1:length(kids), get_sample_ids)
-  get_cluster_ids <- function(x){
-    rep(names(pb_all)[x],each = length(samples_list[[x]]))
-  }
-  de_cluster_ids <- purrr::map(1:length(kids), get_cluster_ids) %>%  unlist()
-
-  #Create a data frame with the sample IDs, cluster IDs and condition
-  gg_df <- data.frame(CellTypes = de_cluster_ids, orig.ident.2 = de_samples)
-  gg_df <- left_join(gg_df, ei[, c("orig.ident.2","tribe")])
-  metadata <- gg_df #%>% dplyr::select(CellTypes,orig.ident.2,tribe)
-
-  #Generate vector of cluster IDs
-  metadata$CellTypes <- factor(metadata$CellTypes,levels=unique(CellTypes))
-  clusters <- levels(metadata$CellTypes)
   groups_all <- colData(sce_all)[,c("CellTypes","orig.ident.2")]
 
   #Aggregate across cluster-sample groups
@@ -254,9 +212,77 @@ pca_function <- function(dds,metadata) {
 pca_function(dds, metadata)
 
 
+##### Data pseudobulk cpm normalisation #####
+#Function pseudobulk cpm normalisation 
+function_cpm_pseudobulk <- function(my.se,minNcells) {
+  Idents(my.se)<-my.se$CellTypes
+
+  #Extract raw counts and metadata to create SingleCellExperiment object
+  counts_all< - GetAssayData(object = my.se, assay="RNA",slot = "counts")
+
+  #Set up metadata as desired for aggregation and DE analysis
+  meta.data_all<-my.se@meta.data
+  meta.data_all$orig.ident.2<-factor(my.se$orig.ident.2)
+
+  #Create single cell experiment object
+  sce_all <- SingleCellExperiment(assays=list(counts=counts_all),colData=meta.data_all)
+
+  groups_all <- colData(sce_all)[,c("CellTypes","orig.ident.2")]
+  groups_all_byCellType <- meta.data_all[,c("CellTypes")]
+
+  #Aggregate across cluster-sample groups (pb_all) and by cell population only (pb_all_byCellType)
+  pb_all <- aggregate.Matrix(t(counts_all), groupings = groups_all, fun = "sum")
+  pb_all_byCellType <- aggregate.Matrix(t(counts_all), groupings = groups_all_byCellType, fun = "sum")
+
+  #Keep genes expressed in at least 2 cells in all species
+  genes_ToKeep <- readRDS('XXX') #list of genes expressed in at least 2 cells in all species
+  pb_all <- pb_all[rownames(pb_all) %in% genes_ToKeep,]
+  pb_all <- as.matrix(t(pb_all))
+  pb_all_byCellType <- as.matrix(t(pb_all_byCellType))
+
+  #Calculate Counts Per Million (cpm)
+  pb_all <- calculateCPM(pb_all,size.factors=NULL)
+  pb_all_byCellType <- calculateCPM(pb_all_byCellType,size.factors=NULL)
+
+  #Keep genes expressed in at least 2 cells in all species in matrix calculated by cell population
+  pb_all_byCellType <- pb_all[rownames(pb_all_byCellType) %in% genes_ToKeep,]
+
+  metadata$combi <- paste0(metadata$CellTypes,"_",metadata$orig.ident.2)
+
+  #Subset samples if fewer than minNcells
+  for (k in 1:length(CellTypes)){
+    aux <- my.se@meta.data[my.se@meta.data$CellTypes==CellTypes[[k]],]
+    for (j in 1:length(unique(aux$orig.ident.2))){
+      if (plyr::count(aux$orig.ident.2)$freq[[j]] < minNcells){
+        aux2 <- paste0(CellTypes[[k]],"_",plyr::count(aux$orig.ident.2)$x[[j]])
+        pb_all <- pb_all[,which(colnames(pb_all)!=aux2)]
+        metadata <- metadata2[metadata$combi %in% colnames(pb_all),]
+      }
+    }
+  }
+
+  return(round(pb_all),round(pb_all_byCellType))
+}
+
+cpm <- as.data.frame(function_cpm_pseudobulk(my.se,20)[[1]])
+saveRDS(cpm,paste0(path_to_output_of_integration,'cpm.rds'))
+
 ##### Gene Specificity Index (gsi) #####
-#Compute gsi
-mat_species <- lapply(seq_along(species_included), function(i) NormalisedCount[,grep(species_included[[i]],colnames(NormalisedCount))])
+#Get number of specific genes for each cell population
+cpm_byCellType <- as.data.frame(function_cpm_pseudobulk(my.se,20)[[2]])
+scale_cpm <- scale(cpm_byCellType,center = FALSE, scale = colSums(cpm_byCellType))
+gsi_byCellType <- scale_cpm/rowMeans(scale_cpm)
+
+lengths_spe <- unlist(lapply(seq_along(colnames(gsi_byCellType)), function(i) length(gsi_byCellType[,i][gsi_byCellType[,i]>5]))) 
+names_spe <- lapply(seq_along(colnames(gsi_byCellType)), function(i) names(gsi_byCellType[,i][gsi_byCellType[,i]>5]))
+
+df_spe <- data.frame(celltype=CellTypes,nb_genes=lengths_spe)
+df_spe$celltype <- factor(df_spe$celltype,levels=CellTypes)
+ggplot(df_spe,aes(x=celltype,y=nb_genes,fill=celltype)) + geom_bar(stat='identity') + theme_classic() + RotatedAxis() + 
+     scale_fill_manual(values=colours_CellTypes) + xlab('') + ggtitle('number of specific genes per cell population')
+
+#Compute gsi across pseudobulks
+mat_species <- lapply(seq_along(species_included), function(i) cpm[,grep(species_included[[i]],colnames(cpm))])
 mat_species <- lapply(mat_species, function(x) scale(x, center = FALSE, scale = colSums(x)))
 gsi_species <- lapply(mat_species, function(x) x/rowMeans(x))
 gsi <- na.omit(do.call('cbind',gsi_species))
@@ -276,8 +302,8 @@ ColorCode <- list(CellType=colours_CellTypes,Species=colours_species)
 sampleCorr <- cor(gsi,gsi,method = 'spearman')
 sampleCorrMatrix <- as.matrix(sampleCorr)
 
-#Plot
-pheatmap(sampleCorrMatrix,annotation_col=str_cols,annotation_colors=ColorCode,color = viridis(1000),main='gsi') #plot Spearman paiwirse correlations based on gsi
+#Plot Spearman paiwirse correlations based on gsi
+pheatmap(sampleCorrMatrix,annotation_col=str_cols,annotation_colors=ColorCode,color = viridis(1000),main='gsi') 
 
 
 
