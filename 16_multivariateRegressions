@@ -2,6 +2,7 @@
 #Script 16. R script for testing associations between epithelial relative abundances and gene expression signatures
 
 library(Seurat)
+library(mvMORPH)
 
 ##### Read input files #####
 
@@ -68,11 +69,9 @@ lograwCounts <- lapply(rawCounts, function(x) log2(x+1))
 exclude_species <- c('Astbur','Orenil')
 lograwCounts <- lapply(lograwCounts, function(x) x[,!(colnames(x) %in% exclude_species)])
 
+
 ##### Prepare the 3 gene sets for multivariate phylogenetic regressions ##### 
-#'Global' gene set: genes expressed in at least 20% of cells within each cell population
-genes_20Prct <- lapply(genes_Prct_CellTypes, function(x) x[x$Cell_proportion > 0.2,])
-lograwCounts_20Prct <- lapply(seq_along(lograwCounts), function(i) lograwCounts[[i]][rownames(lograwCounts[[i]]) %in% genes_20Prct[[i]],])
-names(lograwCounts_20Prct) <- CellTypes
+#'Global' gene set: for now, I take the overall lograwCounts object
 
 #'Specific' gene set: genes that are cell population-specific
 lograwCounts_spe <- lapply(seq_along(lograwCounts), function(i) lograwCounts[[i]][rownames(lograwCounts[[i]]) %in% names(genes_spe[[i]]),])
@@ -89,13 +88,69 @@ lograwCounts_modules <- lapply(lograwCounts_modules, function(x) na.omit(x))
 tree_raw<-read.tree('XXX') #phylogenetic tree from Ronco et al. (2021)
 exclude <- lapply(lograwCounts, function(x) tree_raw$tip.label[! tree_raw$tip.label %in% colnames(x)])
 tree <- lapply(exclude, function(x) ape::drop.tip(phy=tree_raw, tip=x, root.edge = F, rooted = is.rooted(tree_raw)))
-exclude_modules <- lapply(lograwCounts_modules, function(x) tree_raw$tip.label[! tree_raw$tip.label %in% colnames(x)])
-tree_modules <- lapply(exclude_modules, function(x) ape::drop.tip(phy=tree_raw, tip=x, root.edge = F, rooted = is.rooted(tree_raw)))
 exclude_spe<- lapply(lograwCounts_spe, function(x) tree_raw$tip.label[! tree_raw$tip.label %in% colnames(x)])
 tree_spe <- lapply(exclude_spe, function(x) ape::drop.tip(phy=tree_raw, tip=x, root.edge = F, rooted = is.rooted(tree_raw)))
+exclude_modules <- lapply(lograwCounts_modules, function(x) tree_raw$tip.label[! tree_raw$tip.label %in% colnames(x)])
+tree_modules <- lapply(exclude_modules, function(x) ape::drop.tip(phy=tree_raw, tip=x, root.edge = F, rooted = is.rooted(tree_raw)))
 
 #Ecological predictors
-ecological_predictors <- 
+ecological_predictors <- readRDS(paste0(path_to_output_of_integration,'ecological_predictors.rds'))
+ecological_predictors_global <- lapply(lograwCounts, function(x) ecological_predictors[ecological_predictors$species %in% colnames(x),])
+ecological_predictors_spe <- lapply(lograwCounts_spe, function(x) ecological_predictors[ecological_predictors$species %in% colnames(x),])
+ecological_predictors_modules <- lapply(lograwCounts_modules, function(x) ecological_predictors[ecological_predictors$species %in% colnames(x),])
+
+#Reorder cpm matrices and ecological predictors according to tree tips
+lograwCounts <- lapply(seq_along(lograwCounts), function(i) lograwCounts[[i]][,tree[[i]]$tip.label])
+lograwCounts_spe <- lapply(seq_along(lograwCounts_spe), function(i) lograwCounts_spe[[i]][,tree_spe[[i]]$tip.label])
+lograwCounts_modules <- lapply(seq_along(lograwCounts_modules), function(i) lograwCounts_modules[[i]][,tree_modules[[i]]$tip.label])
+
+ecological_predictors_global <- lapply(seq_along(ecological_predictors_global), function(i) ecological_predictors_global[[i]][tree[[i]]$tip.label,])
+ecological_predictors_spe <- lapply(seq_along(ecological_predictors_spe), function(i) ecological_predictors_spe[[i]][tree_spe[[i]]$tip.label,])
+ecological_predictors_modules <- lapply(seq_along(ecological_predictors_modules), function(i) ecological_predictors_modules[[i]][tree_modules[[i]]$tip.label,])
+
+#Transpose matrices
+lograwCounts <- lapply(lograwCounts, function(x) t(x))
+lograwCounts_spe <- lapply(lograwCounts_spe, function(x) t(x))
+lograwCounts_modules <- lapply(lograwCounts_modules, function(x) t(x))
+
+
+##### run mvMORPH ##### 
+#'Global' gene set: genes expressed in at least 20% of cells within each cell population
+genes_20Prct <- lapply(genes_Prct_CellTypes, function(x) x[x$Cell_proportion > 0.2,])
+lograwCounts_20Prct <- lapply(seq_along(lograwCounts), function(i) lograwCounts[[i]][,colnames(lograwCounts[[i]]) %in% genes_20Prct[[i]]$Markers])
+
+#Function to run mvMORPH under a Brownian Motion with a Pagel's lambda tree transformation
+fit_function_unique_predictor_lambda <- function(Data,Si,Tree,i) {
+        fit.d15N <- mvgls(X ~ si,data=list(X=as.matrix(Data[[i]]),si=as.matrix(Si[[i]][,a,drop=F])),Tree[[i]],model = "lambda",method="PL",error=FALSE)
+        fit.d13C <-mvgls(X ~ si,data=list(X=as.matrix(Data[[i]]),si=as.matrix(Si[[i]][,b,drop=F])),Tree[[i]],model = "lambda",method="PL",error=FALSE)
+        fit.gutRatio <- mvgls(X ~ si,data=list(X=as.matrix(Data[[i]]),si=as.matrix(Si[[i]][,c,drop=F])),Tree[[i]],model = "lambda",method="PL",error=FALSE)
+        fit.LPJ_PC2 <- mvgls(X ~ si,data=list(X=as.matrix(Data[[i]]),si=as.matrix(Si[[i]][,d,drop=F])),Tree[[i]],model = "lambda",method="PL",error=FALSE)
+        fit.oral_PC1 <- mvgls(X ~ si,data=list(X=as.matrix(Data[[i]]),si=as.matrix(Si[[i]][,e,drop=F])),Tree[[i]],model = "lambda",method="PL",error=FALSE)
+        fit.diet_ecology_vector <- mvgls(X ~ si,data=list(X=as.matrix(Data[[i]]),si=as.matrix(Si[[i]][,f,drop=F])),Tree[[i]],model = "lambda",method="PL",error=FALSE)
+        return(list(fit.d15N,fit.d13C,fit.gutRatio,fit.LPJ_PC2,fit.oral_PC1,fit.diet_ecology_vector))
+}
+
+#Run the function for each gene set
+fit_lambda_list_global <- lapply(seq_along(length(lograwCounts_20Prct)), function(i) fit_function_unique_predictor_lambda(lograwCounts_20Prct,ecological_predictors,tree,i))
+fit_lambda_list_spe <- lapply(seq_along(length(lograwCounts_spe)), function(i) fit_function_unique_predictor_lambda(lograwCounts_spe,ecological_predictors,tree,i))
+fit_lambda_list_modules <- lapply(seq_along(length(lograwCounts_modules)), function(i) fit_function_unique_predictor_lambda(lograwCounts_modules,ecological_predictors,tree,i))
+
+#Function to run MANOVA on each fitted object
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
