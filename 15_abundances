@@ -2,5 +2,14 @@
 #Script 15. R script for testing associations between epithelial relative abundances and ecology
 
 
+#make table of counts
+aux <- list()
+for (i in 1:length(levels(my.se@meta.data$orig.ident.2))) {
+  aux[[i]] <- plyr::count(my.se@meta.data[my.se@meta.data$orig.ident.2==levels(my.se@meta.data$orig.ident.2)[[i]],]$CellTypes)$freq
+}
 
-count_cellpop <- readRDS('XXX') #file containing the number of cells in each cell population and each species
+count_celltypes <- do.call('rbind',aux)
+rownames(count_celltypes) <- levels(my.se@meta.data$orig.ident.2)
+colnames(count_celltypes) <- levels(my.se@meta.data$CellTypes)
+
+
