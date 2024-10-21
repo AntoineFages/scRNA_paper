@@ -52,7 +52,7 @@ ecological_predictors$epiDCRatio <- count_Ratio[[9]]
 ecological_predictors <- na.omit(ecological_predictors)
 
 #Input time-calibrated species tree
-tree<-read.tree('XXX')
+tree<-read.tree('XXX') #phylogenetic tree from Ronco et al. (2021)
 exclude = tree$tip.label[! tree$tip.label %in% ecological_predictors$species]
 tree = ape::drop.tip(phy=tree, tip=exclude, root.edge = F, rooted = is.rooted(tree))
 
