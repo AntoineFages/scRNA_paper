@@ -1,1 +1,46 @@
+#!/usr/bin/env Rscript
+#Script 14. R script for preparing ecological predictor data
+
+library(ggfortify)
+library(dplyr)
+library(tidyr)
+
+##### Input stable isotope data #####
+SI <- read.csv('XXX') #table containing stable isotope (SI) data
+SI <- SI %>% group_by(Species) %>% summarise(d15N = mean(d15N),d13C = mean(d13C))
+gut <- read.csv('XXX') #table containing gut length data
+gut_all <- gut %>% group_by(Species) %>% summarise(gut_length = mean(gut_length), weight = mean(weight))
+gut_all$ratio <- gut_all$gut_length / (gut_all$weight)^(1/3)
+
+#Exclude Orenil, Astbur for which we do not have SI
+exclude_species <- c('Astbur','Orenil')
+SI <- SI[!(SI$Species %in% exclude_species),]
+
+#Add other morphological predictors: LPJ PC2 and oral jaw PC1
+morpho <- read.csv('XXX') #table to morphological data
+morpho <- na.omit(morpho)
+morpho_means = aggregate(morpho[,c(2,3)], list(LPJ$Species), mean)
+SI$LPJ_PC2 <- morpho_means[match(SI$Species,morpho_means$Group.1),]$LPJ_PC2
+SI$oral_PC1 <- morpho_means[match(SI$Species,morpho_means$Group.1),]$oral_PC1
+SI$ratio <- gut_all[match(SI$Species,gut_all$Species),]$ratio
+SI <- na.omit(SI)
+SI <- as.data.frame(SI)
+rownames(SI) <- SI$Species
+
+#now SI subsetted on our samples
+coldata <- read.csv('XXX') #metadata table for samples included in single-cell dataset
+rownames(coldata) <- coldata$species
+coldata <- coldata[!(coldata$species %in% exclude_species),]
+
+species_TO <- read.csv('XXX') #table of correspondence between species and tribes
+SI$tribe <- species_TO[match(SI$Species,species_TO$Species.ID),]$Tribe
+colours_tribe<-c("#59595C","#F04D29","#9AB9D9","#682E7A","#166533","#C588BB","#535CA9","#845F25","#FBAC43","#FDDF13","#959170","#242626","#AE262A","#86C773")
+names_colours_tribe<-c("Boulengerochromini","Cyprichromini","Ectodini","Eretmodini","Haplochromini","Lamprologini","Limnochromini","Oreochromini","Perissodini","Cyphotilapiini","Trematocarini","Bathybatini","Benthochromini","Tropheini")
+names(colours_tribe)<-names_colours_tribe
+
+pca_SI <- prcomp(SI[,c(a,b,c)],scale=T) #select columns a, b and c (numbers) corresponding to d15N, LPJ_PC2 and gut normalised length (ratio)
+gg_pca <- autoplot(pca_SI,label=T,loadings=T,loadings.label=T,data=SI,color=colours_tribe[SI$tribe]) #plot
+diet_ecology_vector <- pca_SI$x[,1] #The diet ecology vector is the PC1 of this PCA based on dietary predictors
+
+saveRDS(diet_ecology_vector,paste0(path
 
