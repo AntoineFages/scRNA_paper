@@ -14,12 +14,15 @@ source('plotCellTypeProps.R')
 #Read Seurat object
 my.se <- readRDS(paste0(path_to_output_of_integration,'integrated_dataset_final.rds'))
 
+#Ecological predictors
+SI <- readRDS(paste0(path_to_output_of_integration,'ecological_predictors.rds')
+
 #Count number of cells in each cell population and species
 aux <- lapply(levels(my.se@meta.data$orig.ident.2), function(x) plyr::count(my.se@meta.data[my.se@meta.data$orig.ident.2==x,]$CellTypes)$freq)
 count_celltypes <- do.call('rbind',aux)
 rownames(count_celltypes) <- levels(my.se@meta.data$orig.ident.2) #each row corresponds to a species
 colnames(count_celltypes) <- levels(my.se@meta.data$CellTypes) #each column corresponds to a cell population
 
-
+##### Correlations #####
 
 
