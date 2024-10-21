@@ -29,7 +29,7 @@ my.se.20 <- readRDS(paste0(path_to_output_of_integration,'integrated_dataset_fin
 
 ##### Data pseudobulk cpm normalisation #####
 #Function pseudobulk cpm normalisation 
-function_pseudobulk_normalisation <- function(my.se,minNcells,minExpGene) {
+function_cpm_pseudobulk <- function(my.se,minNcells) {
   Idents(my.se)<-my.se$CellTypes
 
   #Extract raw counts and metadata to create SingleCellExperiment object
@@ -42,54 +42,10 @@ function_pseudobulk_normalisation <- function(my.se,minNcells,minExpGene) {
   #Create single cell experiment object
   sce_all <- SingleCellExperiment(assays=list(counts=counts_all),colData=meta.data_all)
 
-  #Named vector of cluster names
-  kids <- purrr::set_names(CellTypes)
-
-  #Named vector of sample names
-  sids <- purrr::set_names(species_included)
-
-  #Turn named vector into a numeric vector of number of cells per sample
-  n_cells <- as.numeric(table(meta.data_all$orig.ident.2))
-
-  #Determine how to reoder the samples (rows) of the metadata to match the order of sample names in sids vector
-  m <- match(sids, meta.data_all$orig.ident.2)
-
-  #Create the sample level metadata by combining the reordered metadata with the number of cells corresponding to each sample.
-  ei <- data.frame(meta.data_all[m, ], n_cells, row.names = NULL)
-
-  #Subset metadata to only include the cluster and sample IDs to aggregate across
-  groups_all <- meta.data_all[,c("CellTypes","orig.ident.2")]
-
-  #Not every cluster is present in all samples; create a vector that represents how to split samples
-  splitf <- sapply(stringr::str_split(rownames(pb_all), pattern = "_", n = 2), `[`, 1)
-
-  #Turn into a list and split the list into components for each cluster and transform, so rows are genes and columns are samples and make rownames as the sample IDs
-  pb_all <- split.data.frame(pb_all, factor(splitf)) %>% lapply(function(u) set_colnames(t(u),stringr::str_extract(rownames(u), "(?<=_)[:alnum:]+")))
-
-  #Prepare dataframe for plotting
-  get_sample_ids <- function(x){
-    pb_all[[x]] %>% colnames()
-  }
-  de_samples <- purrr::map(1:length(kids), get_sample_ids) %>% unlist()
-
-  #Get cluster IDs for each of the samples
-  samples_list <- purrr::map(1:length(kids), get_sample_ids)
-  get_cluster_ids <- function(x){
-    rep(names(pb_all)[x],each = length(samples_list[[x]]))
-  }
-  de_cluster_ids <- purrr::map(1:length(kids), get_cluster_ids) %>%  unlist()
-
-  #Create a data frame with the sample IDs, cluster IDs and condition
-  gg_df <- data.frame(CellTypes = de_cluster_ids, orig.ident.2 = de_samples)
-  gg_df <- left_join(gg_df, ei[, c("orig.ident.2","tribe")])
-  metadata <- gg_df #%>% dplyr::select(CellTypes,orig.ident.2,tribe)
-
-  #Generate vector of cluster IDs
-  metadata$CellTypes <- factor(metadata$CellTypes,levels=unique(CellTypes))
-  clusters <- levels(metadata$CellTypes)
   groups_all <- colData(sce_all)[,c("CellTypes","orig.ident.2")]
+  groups_all_byCellType <- meta.data_all[,c("CellTypes")]
 
-  #Aggregate across cluster-sample groups
+  #Aggregate across cluster-sample groups (pb_all) 
   pb_all <- aggregate.Matrix(t(counts_all), groupings = groups_all, fun = "sum")
 
   #Keep genes expressed in at least 2 cells in all species
@@ -97,7 +53,7 @@ function_pseudobulk_normalisation <- function(my.se,minNcells,minExpGene) {
   pb_all <- pb_all[rownames(pb_all) %in% genes_ToKeep,]
   pb_all <- as.matrix(t(pb_all))
 
-  #Calculate cpm
+  #Calculate Counts Per Million (cpm)
   pb_all <- calculateCPM(pb_all,size.factors=NULL)
 
   metadata$combi <- paste0(metadata$CellTypes,"_",metadata$orig.ident.2)
@@ -109,18 +65,43 @@ function_pseudobulk_normalisation <- function(my.se,minNcells,minExpGene) {
       if (plyr::count(aux$orig.ident.2)$freq[[j]] < minNcells){
         aux2 <- paste0(CellTypes[[k]],"_",plyr::count(aux$orig.ident.2)$x[[j]])
         pb_all <- pb_all[,which(colnames(pb_all)!=aux2)]
-        metadata <- metadata2[metadata$combi %in% colnames(pb_all),]
+        metadata <- metadata[metadata$combi %in% colnames(pb_all),]
       }
     }
   }
 
-  #Normalisation with DESeq2
-  dds_counts_all <- DESeqDataSetFromMatrix(round(pb_all), colData = metadata, design = ~ tribe)
-  dds_all<-estimateSizeFactors(dds_counts_all)
-  return(list(dds_all,metadata))
+#NORMCOUNTS ANALYSES
+  normCounts_by_CellType <- lapply(seq_along(CellTypes), function(i) normCounts[,grep(CellTypes[[i]],colnames(normCounts))])
+  sampleCorr_by_CellType <- lapply(seq_along(normCounts_by_CellType), function(i) as.matrix(cor(normCounts_by_CellType[[i]],normCounts_by_CellType[[i]],method = 'spearman')))
+  for (g in 1:length(sampleCorr_by_CellType)){
+    colnames(sampleCorr_by_CellType[[g]]) <- sub(".*_", "", colnames(sampleCorr_by_CellType[[g]]))
+    rownames(sampleCorr_by_CellType[[g]]) <- sub(".*_", "", rownames(sampleCorr_by_CellType[[g]]))
+  }
+  sampleCorr_by_CellType <- lapply(seq_along(normCounts_by_CellType), function(i) melt(sampleCorr_by_CellType[[i]]))
+  for (g in 1:length(sampleCorr_by_CellType)){
+    sampleCorr_by_CellType[[g]]$CellType <- CellTypes[[g]]
+    sampleCorr_by_CellType[[g]]$Pair <- paste0(sampleCorr_by_CellType[[g]]$Var1,'_',sampleCorr_by_CellType[[g]]$Var2)
+  }
+
+  tree = read.tree("/scicore/home/salzburg/fages0000/scRNA/Seurat/scripts/integration/b1.tre")
+  Dist.mat.sp <- melt(cophenetic(tree)/2)
+  Dist.mat.sp$Pair <- paste0(Dist.mat.sp$Var1,'_',Dist.mat.sp$Var2)
+  for (g in 1:length(sampleCorr_by_CellType)){
+    sampleCorr_by_CellType[[g]]$dist <- Dist.mat.sp[match(sampleCorr_by_CellType[[g]]$Pair,Dist.mat.sp$Pair),]$value
+    sampleCorr_by_CellType[[g]]$rate <- (1-sampleCorr_by_CellType[[g]]$value) / sampleCorr_by_CellType[[g]]$dist
+  }
+  normCounts_by_CellType[[10]] <- normCounts_by_CellType[[10]][,-c(grep(CellTypes[[9]],colnames(normCounts_by_CellType[[10]])))]
+ return(normCounts_by_CellType)
+
+
+
+
+
+  return(round(pb_all),round(pb_all_byCellType))
 }
 
-#Get normalised matrix of pseudobulks
-dds <- function_pseudobulk_normalisation(my.se,20)[[1]]
-metadata <- function_pseudobulk_normalisation(my.se,20)[[2]]
+cpm.20 <- function_cpm_pseudobulk(my.se.20,20,2)
+
+
+
 
