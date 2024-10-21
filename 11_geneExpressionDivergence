@@ -69,38 +69,74 @@ function_cpm_pseudobulk <- function(my.se,minNcells) {
       }
     }
   }
-
-#NORMCOUNTS ANALYSES
-  normCounts_by_CellType <- lapply(seq_along(CellTypes), function(i) normCounts[,grep(CellTypes[[i]],colnames(normCounts))])
-  sampleCorr_by_CellType <- lapply(seq_along(normCounts_by_CellType), function(i) as.matrix(cor(normCounts_by_CellType[[i]],normCounts_by_CellType[[i]],method = 'spearman')))
-  for (g in 1:length(sampleCorr_by_CellType)){
-    colnames(sampleCorr_by_CellType[[g]]) <- sub(".*_", "", colnames(sampleCorr_by_CellType[[g]]))
-    rownames(sampleCorr_by_CellType[[g]]) <- sub(".*_", "", rownames(sampleCorr_by_CellType[[g]]))
-  }
-  sampleCorr_by_CellType <- lapply(seq_along(normCounts_by_CellType), function(i) melt(sampleCorr_by_CellType[[i]]))
-  for (g in 1:length(sampleCorr_by_CellType)){
-    sampleCorr_by_CellType[[g]]$CellType <- CellTypes[[g]]
-    sampleCorr_by_CellType[[g]]$Pair <- paste0(sampleCorr_by_CellType[[g]]$Var1,'_',sampleCorr_by_CellType[[g]]$Var2)
-  }
-
-  tree = read.tree("/scicore/home/salzburg/fages0000/scRNA/Seurat/scripts/integration/b1.tre")
-  Dist.mat.sp <- melt(cophenetic(tree)/2)
-  Dist.mat.sp$Pair <- paste0(Dist.mat.sp$Var1,'_',Dist.mat.sp$Var2)
-  for (g in 1:length(sampleCorr_by_CellType)){
-    sampleCorr_by_CellType[[g]]$dist <- Dist.mat.sp[match(sampleCorr_by_CellType[[g]]$Pair,Dist.mat.sp$Pair),]$value
-    sampleCorr_by_CellType[[g]]$rate <- (1-sampleCorr_by_CellType[[g]]$value) / sampleCorr_by_CellType[[g]]$dist
-  }
-  normCounts_by_CellType[[10]] <- normCounts_by_CellType[[10]][,-c(grep(CellTypes[[9]],colnames(normCounts_by_CellType[[10]])))]
- return(normCounts_by_CellType)
-
-
-
-
-
-  return(round(pb_all),round(pb_all_byCellType))
+return(pb_all)
 }
 
-cpm.20 <- function_cpm_pseudobulk(my.se.20,20,2)
+cpm.20 <- function_cpm_pseudobulk(my.se.20,20)
+cpm_by_CellType <- lapply(seq_along(CellTypes), function(i) cpm.20[,grep(CellTypes[[i]],colnames(cpm.20))])
+
+#Make sure epithelial DCs are not contained in the 10th matrix of cpm_by_CellType (DCs)
+cpm_by_CellType[[10]] <- cpm_by_CellType[[10]][,-c(grep(CellTypes[[9]],colnames(cpm_by_CellType[[10]])))]
+
+#Rename column names of each cpm matrix in cpm_by_CellType
+for (i in 1:length(cpm_by_CellType)){
+  colnames(cpm_by_CellType[[i]]) <- sub(".*_", "", colnames(cpm_by_CellType[[i]]))
+}
+
+#Remove outliers with too few reads
+cpm_by_CellType[[2]] <- cpm_by_CellType[[2]][,colnames(cpm_by_CellType[[2]])!='Julorn']
+cpm_by_CellType[[3]] <- cpm_by_CellType[[3]][,colnames(cpm_by_CellType[[3]])!='Hapmic']
+cpm_by_CellType[[5]] <- cpm_by_CellType[[5]][,colnames(cpm_by_CellType[[5]])!='Julorn']
+cpm_by_CellType[[10]] <- cpm_by_CellType[[10]][,colnames(cpm_by_CellType[[10]])!='Cphfro']
+cpm_by_CellType[[10]] <- cpm_by_CellType[[10]][,colnames(cpm_by_CellType[[10]])!='Hapmic']
+cpm_by_CellType[[20]] <- cpm_by_CellType[[20]][,colnames(cpm_by_CellType[[20]])!='Hapmic']
+
+#EVEE-tool function to calculate Mean Squared Gene Expression Distance across species, within each cell population (MSGED)
+EVEE_distance_analysis <- function(exp){
+  exp <- exp[,colnames(exp)!='Orenil']
+  index <- data.frame(colnames(exp),colnames(exp))
+  data = exp
+  result <- list()
+  for (k in 1:ncol(exp)){
+  residuals = c()
+  print(k)
+  refSpecies <- colnames(exp)[[k]]
+  print(refSpecies)
+  ref = as.matrix(data[,index[,1] == refSpecies])
+  if (sum(index[,1] == refSpecies) == 1) {
+    ref.mean = ref
+    rownames(ref.mean) = rownames(data)
+  } else {
+    ref.mean = as.matrix(apply(ref, 1, function(x) mean(x, na.rm=T)))
+  }
+
+  cat("Processing...\n")
+  for (i in 1:ncol(data)) {
+    cat("\t")
+    cat(colnames(data)[i])
+    cat("\n")
+    other = as.matrix(data[,i])
+    ref.data = ref.mean[ref.mean > 0 & other > 0,]
+    other.data = other[ref.mean > 0 & other > 0,]
+    t = cbind(log10(ref.data+1), log10(other.data+1))
+    t = t[apply(t, 1, function(x) sum(is.na(x)))  == 0,]
+    m = prcomp(t)
+    res = m$x[,2]
+    r = res[rownames(data)]
+    if (m$rotation[2,2]<0) r = r*-1
+    residuals = cbind(residuals, r)
+  }
+  colnames(residuals) = colnames(data)
+  rownames(residuals) = rownames(data)
+  print('ok')
+    result[[k]] <- lapply(seq_along(colnames(residuals)), function(j) mean((residuals[,j][!(is.na(residuals[,j]))])^2))
+    result[[k]]<-unlist(result[[k]])
+    names(result[[k]]) <- paste0(refSpecies,'_',colnames(residuals))
+  }
+  return(result)
+}
+
+distances_cpm <- lapply(seq_along(cpm_by_CellType), function(j) EVEE_distance_analysis(cpm_by_CellType[[j]]))
 
 
 
