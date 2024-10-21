@@ -74,7 +74,7 @@ PPI <- function_average_within_cell(my.se, "CellTypes", PPI_table, "Freq", "gene
 saveRDS(TAI,paste0(path_to_output_of_transcriptome_characterisation,'PPI.rds')
 
 dNdS <- function_average_within_cell(my.se, "CellTypes", dNdS_table, "dNdS", "geneID")
-saveRDS(TAI,paste0(path_to_output_of_transcriptome_characterisation,'dNdS.rds')
+saveRDS(dNdS,paste0(path_to_output_of_transcriptome_characterisation,'dNdS.rds')
 
 
 
