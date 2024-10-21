@@ -27,20 +27,10 @@ SI <- na.omit(SI)
 SI <- as.data.frame(SI)
 rownames(SI) <- SI$Species
 
-#now SI subsetted on our samples
-coldata <- read.csv('XXX') #metadata table for samples included in single-cell dataset
-rownames(coldata) <- coldata$species
-coldata <- coldata[!(coldata$species %in% exclude_species),]
-
-species_TO <- read.csv('XXX') #table of correspondence between species and tribes
-SI$tribe <- species_TO[match(SI$Species,species_TO$Species.ID),]$Tribe
-colours_tribe<-c("#59595C","#F04D29","#9AB9D9","#682E7A","#166533","#C588BB","#535CA9","#845F25","#FBAC43","#FDDF13","#959170","#242626","#AE262A","#86C773")
-names_colours_tribe<-c("Boulengerochromini","Cyprichromini","Ectodini","Eretmodini","Haplochromini","Lamprologini","Limnochromini","Oreochromini","Perissodini","Cyphotilapiini","Trematocarini","Bathybatini","Benthochromini","Tropheini")
-names(colours_tribe)<-names_colours_tribe
-
+#Perform PCA on dietary predictors to obtain diet ecology vector
 pca_SI <- prcomp(SI[,c(a,b,c)],scale=T) #select columns a, b and c (numbers) corresponding to d15N, LPJ_PC2 and gut normalised length (ratio)
-gg_pca <- autoplot(pca_SI,label=T,loadings=T,loadings.label=T,data=SI,color=colours_tribe[SI$tribe]) #plot
 diet_ecology_vector <- pca_SI$x[,1] #The diet ecology vector is the PC1 of this PCA based on dietary predictors
 
-saveRDS(diet_ecology_vector,paste0(path
+#Save object
+saveRDS(diet_ecology_vector,paste0(path_to_output_of_integration,'diet_ecology_vector.rds'))
 
