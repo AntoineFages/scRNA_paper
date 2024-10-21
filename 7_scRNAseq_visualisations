@@ -1,6 +1,110 @@
+#!/usr/bin/env Rscript
+#Script 7. R script for basic visualisations of scRNAseq integrated dataset
+
 library(Seurat)
+library(BayesPrism)
+library(ggplot2)
+library(viridis)
+library(MetaNeighbor)
+library(scibet)
+
+##### Read input files #####
+#Custom PCA script and script to plot relative cell abundances
+source('PCA_script.R') 
+source('plotCellTypeProps.R')
 
 #Read Seurat object
 my.se <- readRDS(paste0(path_to_output_of_integration,'integrated_dataset_final.rds'))
-Idents(my.se)<-my.se$CellTypes
+
+#Define cell population colours
+CellTypes<-c('enterocytes 1','enterocytes 2','LREs','BEST4 cells','proliferating secretory cells','goblet cells','Tuft cells','enteroendocrine cells','epithelial DCs','DCs','macrophages 1','macrophages 2','eosinophils','T cells 1','T cells 2','T cells 3','T cells 4','T cells 5','B cells 1','B cells 2','RBCs','mesenchymal cells','endothelial cells','cycling cells')
+colours_CellTypes<-c("#FF7F00","#FE9F38","#FDBF6F","#FED47D","#1F78B4","#5299C6","#84B9D7","#A6CEE3","#B8C0DD","#CAB2D6", "#B295C7","#9A78B8","#6A3D9A","#D6EE91","#CAE98F","#BEE48C","#B2DF8A","#A0D67C","#33A02C","#33A04C","#E31A1C","#FB9A99","#F18499","grey20")
+Idents(my.se) <- factor(Idents(my.se),levels=CellTypes)
+my.se$CellTypes <- Idents(my.se)
+names(colours_CellTypes) <- CellTypes
+
+
+##### Basic visualisations #####
+#Basic metrics
+DimPlot(my.se,label=F) +  scale_color_manual(values=colours_CellTypes))
+VlnPlot(my.se,features=c('percent.mt'),pt.size = 0) + NoLegend() + stat_summary(fun.y=median,geom='point',size=5,colour="white",shape=95) + scale_fill_manual(values=colours_CellTypes) + ggtitle('fraction of mitochondrial reads (%)') + xlab('')
+VlnPlot(my.se,features=c('nCount_RNA'),pt.size = 0) + NoLegend() + stat_summary(fun.y=median,geom='point',size=5,colour="white",shape=95) + scale_fill_manual(values=colours_CellTypes)+ ggtitle('total number of counts')+ xlab('')+ coord_cartesian(ylim=c(0,30000))
+VlnPlot(my.se,features=c('nFeature_RNA'),pt.size = 0) + NoLegend() + stat_summary(fun.y=median,geom='point',size=5,colour="white",shape=95) + scale_fill_manual(values=colours_CellTypes) + ggtitle('number of detected genes') + xlab('')+ coord_cartesian(ylim=c(0,8000))
+
+plot.abundance <- plotCellTypeProps(clusters=my.se$CellTypes,sample=my.se$orig.ident.2)
+plot.abundance + theme_classic() + theme(axis.text.x = element_text(angle = 45))+ ggtitle("cell type distribution per species") + scale_fill_manual(values=colours_CellTypes)
+
+#Marker genes DotPlot
+mrk<-c("epcam","LOC100706176","fabp2","LOC100704253","LOC100703770","LOC109195983", "cubn","best4",
+      "cftr","myb","LOC100697624","LOC102078463","LOC102082568","pou2f3","lrmp","scg3","neurod1",
+      "LOC102081683","LOC109202766","LOC100694706","LOC100693084","LOC102078117", "prdm1","epx",
+      "LOC100707205","LOC100703242","LOC100704742","LOC100699713","LOC109204854","gata3","cd79a",
+      "plk2","LOC106096470","LOC102080222","LOC100704059","anxa1","LOC100694532","lyve1","cenpe")
+
+mrk_names<-c("epcam","amcase-1","fabp2","tmigd1","amcase-2","cathepsin L1","cubn","best4",
+            "cftr","myb","mex3a","guanylin","muc2a","pou2f3","lrmp","scg3","neurod1",
+            "cr1","mcp1b","ppt2","c1qb","c1qc","prdm1","epx",
+            "ffar2","bcl11bb","ccl3","ccl20","ccl10","gata3","cd79a",
+            "plk2","IgM μ heavy chain-like","hbab","hbba","anxa1","col1a1","lyve1","cenpe") 
+
+xlabs <- c('enterocytes 1','enterocytes 2','lysosome-rich enterocytes','BEST4 cells','proliferating secretory cells',
+          'goblet cells','Tuft cells','enteroendocrine cells','epithelial dendritic cells','dendritic cells',
+          'macrophages 1','macrophages 2','eosinophils','T cells 1','T cells 2','T cells 3','T cells 4','T cells 5',
+          'B cells 1','B cells 2','red blood cells','mesenchymal cells','endothelial cells','cycling cells')
+
+rev_levels<-rev(levels(my.se))
+levels(my.se)<-rev_levels
+DotPlot(my.se,features=rev(mrk)) + RotatedAxis() + scale_x_discrete(labels=rev(mrk_names)) + 
+  scale_color_gradient(low='white',high='black') + coord_flip() + scale_y_discrete(labels=xlabs)
+levels(my.se)<-rev(levels(my.se))
+
+#Anterior-posterior markers
+genes_Lickwar <- read.csv('XXX') #path to text file containing genes used in Lickwar et al. 2017, https://doi.org/10.1371/journal.pbio.2002054
+epithelium <- subset(my.se,idents=CellTypes[1:9])
+levels(epithelium) <- rev(levels(epithelium))
+DotPlot(epithelium,features=genes_Lickwar$gff_annotation) + scale_color_gradient(low='white',high='black') + RotatedAxis() + xlab('') + ylab('')
+
+#Pairwise correlations between cell populations
+sc.counts.matrix=round(GetAssayData(object = my.se, slot = "data"))
+sc.counts.matrix<-as.matrix(sc.counts.matrix)
+individual.labels=my.se$orig.ident.2
+cell.type.labels=unlist(my.se$CellTypes)
+sample.ids <- colnames(sc.counts.matrix)
+sc.counts.matrix<-t(sc.counts.matrix)
+sc.dat<-t(sc.counts.matrix)
+my_palette <- colorRampPalette(c('#F0FFFF','#005656'))
+plot.cor.phi(input=sc.dat, input.labels=cell.type.labels, title="cell type correlation",cexRow=0.5, cexCol=0.5,my_palette = my_palette) #plot pairwise correlations
+
+#MetaNeighbor quality check
+MetaNeighbor_function <- function(my.se) {
+  sce <- as.SingleCellExperiment(my.se) #Convert into SingleCellExperiment object
+  M <- colData(sce)[,20,drop=F] #cell population column of metadata
+  M$CellTypes <- factor(M$CellTypes)
+  CT <- table(rep(1:nrow(M),1),unlist(M))
+  rownames(CT) <- colnames(sce)
+  M2 <- model.matrix(~sce$CellTypes - 1)
+  colnames(M2) <- levels(as.factor(sce$CellTypes))
+  rownames(M2) <- colnames(sce)
+  CT <- M2
+  var_genes <- variableGenes(dat = sce, exp_labels = sce$orig.ident.2) #exploratory analysis
+  celltype_NV <- MetaNeighborUS(var_genes = var_genes,dat = sce,study_id = sce$orig.ident.2,cell_type = sce$CellTypes,fast_version = TRUE)
+  top_hits <- topHits(cell_NV = celltype_NV,dat = sce,study_id = sce$orig.ident.2,cell_type = sce$CellTypes,threshold = 0.8)
+  return(top_hits)
+}
+MetaHits <- MetaNeighbor_function(my.se)
+
+#Scibet confusion heatmap
+expr <- t(as.data.frame(my.se@assays$RNA@data))
+expr <- as.data.frame(expr)
+expr$label<-my.se@meta.data$CellTypes
+tibble(ID = 1:nrow(expr),label = expr$label) %>%
+  dplyr::sample_frac(0.7) %>%
+  dplyr::pull(ID) -> ID
+train_set <- expr[ID,]      #construct reference set
+test_set <- expr[-ID,]      #construct query set
+prd <- SciBet(train_set, test_set[,-ncol(test_set)])
+conf<-Confusion_heatmap(test_set$label, prd)
+conf$data$prd <- factor(conf$data$prd,levels=rev(CellTypes))
+conf
+
 
