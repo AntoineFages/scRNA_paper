@@ -278,8 +278,8 @@ cpm_byCellType <- as.data.frame(function_cpm_pseudobulk(my.se,20)[[2]])
 scale_cpm <- scale(cpm_byCellType,center = FALSE, scale = colSums(cpm_byCellType))
 gsi_byCellType <- scale_cpm/rowMeans(scale_cpm)
 
-#Define cell population-specific genes as genes with gsi > 5
-lengths_spe <- unlist(lapply(seq_along(colnames(gsi_byCellType)), function(i) length(gsi_byCellType[,i][gsi_byCellType[,i]>5]))) 
+#Define cell population-specific genes as genes with gsi > 6, ~ top 1% of gsi values
+lengths_spe <- unlist(lapply(seq_along(colnames(gsi_byCellType)), function(i) length(gsi_byCellType[,i][gsi_byCellType[,i]>6]))) 
 names_spe <- lapply(seq_along(colnames(gsi_byCellType)), function(i) names(gsi_byCellType[,i][gsi_byCellType[,i]>5]))
 df_spe <- data.frame(celltype=CellTypes,nb_genes=lengths_spe)
 df_spe$celltype <- factor(df_spe$celltype,levels=CellTypes)
@@ -287,6 +287,11 @@ df_spe$celltype <- factor(df_spe$celltype,levels=CellTypes)
 #Plot number of cell population-specific genes per cell population 
 ggplot(df_spe,aes(x=celltype,y=nb_genes,fill=celltype)) + geom_bar(stat='identity') + theme_classic() + RotatedAxis() + 
      scale_fill_manual(values=colours_CellTypes) + xlab('') + ggtitle('number of specific genes per cell population')
+
+#Save cell population-specific genes
+genes_spe <- lapply(seq_along(colnames(gsi_byCellType)), function(i) (gsi_byCellType[,i][gsi_byCellType[,i]>6])) 
+saveRDS(genes_spe,paste0(path_to_output_of_integration,'genes_specific.rds'))
+
 
 ###2. Compute gsi across pseudobulks
 mat_species <- lapply(seq_along(species_included), function(i) cpm[,grep(species_included[[i]],colnames(cpm))])
