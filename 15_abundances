@@ -1,15 +1,25 @@
 #!/usr/bin/env Rscript
 #Script 15. R script for testing associations between epithelial relative abundances and ecology
 
+library(Seurat)
+library(geiger)
+library(caper)
+library(plyr)
 
-#make table of counts
-aux <- list()
-for (i in 1:length(levels(my.se@meta.data$orig.ident.2))) {
-  aux[[i]] <- plyr::count(my.se@meta.data[my.se@meta.data$orig.ident.2==levels(my.se@meta.data$orig.ident.2)[[i]],]$CellTypes)$freq
-}
+##### Read input files #####
+#Custom PCA script and script to plot relative cell abundances
+source('PCA_script.R') 
+source('plotCellTypeProps.R')
 
+#Read Seurat object
+my.se <- readRDS(paste0(path_to_output_of_integration,'integrated_dataset_final.rds'))
+
+#Count number of cells in each cell population and species
+aux <- lapply(levels(my.se@meta.data$orig.ident.2), function(x) plyr::count(my.se@meta.data[my.se@meta.data$orig.ident.2==x,]$CellTypes)$freq)
 count_celltypes <- do.call('rbind',aux)
-rownames(count_celltypes) <- levels(my.se@meta.data$orig.ident.2)
-colnames(count_celltypes) <- levels(my.se@meta.data$CellTypes)
+rownames(count_celltypes) <- levels(my.se@meta.data$orig.ident.2) #each row corresponds to a species
+colnames(count_celltypes) <- levels(my.se@meta.data$CellTypes) #each column corresponds to a cell population
+
+
 
 
