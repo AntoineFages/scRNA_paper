@@ -91,6 +91,7 @@ cpm_by_CellType[[10]] <- cpm_by_CellType[[10]][,colnames(cpm_by_CellType[[10]])!
 cpm_by_CellType[[10]] <- cpm_by_CellType[[10]][,colnames(cpm_by_CellType[[10]])!='Hapmic']
 cpm_by_CellType[[20]] <- cpm_by_CellType[[20]][,colnames(cpm_by_CellType[[20]])!='Hapmic']
 
+##### EVEE-tool MSGED #####
 #EVEE-tool function to calculate Mean Squared Gene Expression Distance across species, within each cell population (MSGED)
 EVEE_distance_analysis <- function(exp){
   exp <- exp[,colnames(exp)!='Orenil']
@@ -137,6 +138,63 @@ EVEE_distance_analysis <- function(exp){
 }
 
 distances_cpm <- lapply(seq_along(cpm_by_CellType), function(j) EVEE_distance_analysis(cpm_by_CellType[[j]]))
+
+##### Model MSGED #####
+#Model MSGED as a function of genomic distance (substitutions)
+
+#input for genomic distances (from Ronco et al. 2021)
+f5_dist <- read.table('~/f5.dists_based_on_callability.txt')
+f5_dist_melt <- rstatix::cor_gather(f5_dist)
+f5_dist_melt <- as.data.frame(f5_dist_melt)
+f5_dist_melt <- readRDS('~/f5.dists_melt_based_on_callability.rds')
+f5_dist_melt$speciesPair <- paste0(f5_dist_melt$var1,"_",f5_dist_melt$var2)
+
+#Merge cpm distances and genomic distances into one dataframe that I call 'df'
+lengths_unlist <- lapply(seq_along(distances_cpm), function(i) length(unlist(distances_cpm[[i]])))
+distances_unlist <- unlist(unlist(distances_cpm))
+df <- data.frame(distances_unlist,names(distances_unlist)) #create df based on gene expression distances
+colnames(df) <- c('Exp','Pair')
+df$CellTypes <- rep(CellTypes,lengths_unlist) #add cell population information to df
+df$dist <- f5_dist_melt[match(df$Pair,f5_dist_melt$speciesPair),]$cor #add genomic distances to df
+df <- na.omit(df) 
+df <- df[df$dist>0,] #make sure only pairs of distinct species are included
+df$CellTypes <-factor(df$CellTypes,levels=CellTypes)
+
+df$logExp <- log(df$Exp) #calculate log-transformation of gene expression distance
+df$logdist <- log(df$dist) #calculate log-transformation of genomic distance
+
+#Create one data frame for each cell population based on the df dataframe
+df_celltype <- lapply(CellTypes, function(x) df[df$CellTypes == x,])
+
+#Remove cell populations with low number of species represented by 20 cells or more: eosinophils, T cells 5, B cells 2, red blood cells, endothelial cells, cycling cells
+colours_CellTypes<-c("#FF7F00","#FE9F38","#FDBF6F","#FED47D","#1F78B4","#5299C6","#84B9D7","#A6CEE3","#B8C0DD","#CAB2D6", "#B295C7","#9A78B8",
+                    "#6A3D9A","#D6EE91","#CAE98F","#BEE48C","#B2DF8A","#A0D67C","#33A02C","#33A04C","#E31A1C","#FB9A99","#F18499","grey20")
+palette(colours_CellTypes)
+colours_CellTypes<-colours_CellTypes[-c(13,18,20,21,23,24)]
+palette(colours_CellTypes)
+df_celltype <- df_celltype[-c(13,18,20,21,23,24)]
+
+#Plot these
+plot(y=df$Exp,x=df$dist, xlab="Dist", ylab="Exp", pch=19, cex=0.75, las=1, col=df$CellTypes, type="n",xlim=c(0,1.8e7),ylim=c(0,0.09))
+
+#Add distances based on real points
+for (i in 1:length(df_celltype)) {
+   tmpmod <- lm(logExp ~ logdist, df_celltype[[i]])
+   predmod_data = data.frame(logdist = seq(log(1838510), log(16261581), 0.1 ))
+   predmod_data$logExp = predict(tmpmod, newdata=predmod_data)
+   points(exp(predmod_data$logdist), exp(predmod_data$logExp), type="l", col=i,lwd=2)
+}
+
+#Add extrapolations to outside of range
+for (i in 1:length(df_celltype)) {
+  tmpmod <- lm(logExp ~ logdist, df_celltype[[i]])
+  predmod_data = data.frame(logdist = seq(log(1e5), log(1.8e7), 0.1 ))
+  predmod_data$logExp = predict(tmpmod, newdata=predmod_data)
+  points(exp(predmod_data$logdist), exp(predmod_data$logExp), type="l", col=i,lwd=2,lty=2)
+}
+
+
+
 
 
 
