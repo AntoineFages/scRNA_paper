@@ -4,12 +4,110 @@ library(Seurat)
 library(scibet)
 library(dplyr)
 library(tibble)
+library(BayesPrism)
 
-##### input data #####
+##### Prepare bulkRNA input data #####
 Matrix <- as.matrix(read.csv('Matrix.txt',sep="\t",row.names="gene"))
 Matrix <- head(Matrix,-5)
-path_to_output_of_transcriptome_characterisation <- 'XXX' #path to put the output of analyses in this script
 
+#Create one matrix per species
+Matrix_Astbur <- Matrix[,c(1:10)]
+Matrix_Erecya <- Matrix[,c(11:20)]
+Matrix_Lepatt <- Matrix[,c(21:30)]
+
+Matrix_Astbur_byPart <- lapply(seq_along(1:5), function(i) Matrix_Astbur[,c(i,i+5)])
+Matrix_Erecya_byPart <- lapply(seq_along(1:5), function(i) Matrix_Astbur[,c(i,i+5)])
+Matrix_Lepatt_byPart <- lapply(seq_along(1:5), function(i) Matrix_Astbur[,c(i,i+5)])
+
+Matrix_all_byPart<-list(Matrix_Astbur_byPart,Matrix_Erecya_byPart,Matrix_Lepatt_byPart)
+
+##### Prepare scRNAseq input data #####
 #Read Seurat object
 my.se <- readRDS(paste0(path_to_output_of_integration,'integrated_dataset_final.rds'))
+Idents(my.se)<-my.se$CellTypes
+
+#Cell Types
+CellTypes<-levels(my.se)
+
+#divide by orig.ident.2
+Idents(my.se)<-my.se$orig.ident
+my.se_Astbur <- subset(my.se,idents=c('Astbur'))
+Idents(my.se_Astbur)<-my.se_Astbur$CellTypes
+my.se_Erecya <- subset(my.se,idents=c('Erecya'))
+Idents(my.se_Erecya)<-my.se_Erecya$CellTypes
+my.se_Lepatt <- subset(my.se,idents=c('Lepatt'))
+Idents(my.se_Lepatt)<-my.se_Lepatt$CellTypes
+
+my.se <- list(my.se_Astbur,my.se_Erecya,my.se_Lepatt)
+
+sc.counts.matrix <- lapply(seq_along(my.se), function(i) t(as.matrix(round(GetAssayData(object = my.se[[i]], slot = "counts")))))
+cell.type.labels <- lapply(seq_along(my.se), function(i) my.se[[i]]$CellTypes)
+sample.ids <- lapply(seq_along(my.se), function(i) colnames(sc.counts.matrix[[i]]))
+
+##### Deconvolution with BayesPrism #####
+#Function to filter outlier genes
+filtering_function <- function(scRNA.obj,cell.type.labels) {
+  sc.stat <- plot.scRNA.outlier(input=scRNA.obj, cell.type.labels=cell.type.labels, species="hs", return.raw=TRUE)
+  sc.stat$FILTER<-"FALSE"
+  sc.stat[which(sc.stat$exp.mean.log>=-8 & sc.stat$max.spec<=0.4),]$FILTER<-"TRUE"
+  sc.stat$Rb<-sc.stat$FILTER
+  sc.stat<-sc.stat[sc.stat$FILTER=='FALSE',]
+  return(sc.stat)
+}
+
+#Function to construct prism object and run BayesPrism
+deconvolution_function <- function(sc.dat, bk.dat.original,cell.type.labels){
+  bp.res <-list()
+  for (k in 1:5){
+    print(k)
+    bk.dat <- t(bk.dat.original[[k]])
+    sc.colSum<-colSums(sc.dat)
+    bk.colSum<-colSums(bk.dat)
+    sc.colSum.modif<-sc.colSum[names(sc.colSum) %in% names(bk.colSum)]
+    bk.colSum.modif<-bk.colSum[names(bk.colSum) %in% names(sc.colSum.modif)]
+    sc.colSum.modif<-sc.colSum[names(sc.colSum) %in% names(bk.colSum.modif)]
+    c.colSum.modif<-sc.colSum.modif[match(names(bk.colSum.modif),names(sc.colSum.modif))]
+    myPrism <- new.prism(reference=sc.dat,mixture=bk.dat,input.type="count.matrix",cell.type.labels = cell.type.labels,cell.state.labels = cell.type.labels,key=NULL,outlier.cut=0.01,outlier.fraction=0.1)
+    bp.res[[k]] <- run.prism(prism = myPrism, n.cores=18)
+  }
+  return(bp.res)
+}
+
+#Run these two functions
+sc.stat <- lapply(seq_along(sc.counts.matrix), function(i) filtering_function(sc.counts.matrix[[i]],cell.type.labels[[i]]))
+bp.res <- lapply(seq_along(sc.counts.matrix), function(i) deconvolution_function(sc.counts.matrix[[i]],Matrix_all_byPart[[i]],cell.type.labels[[i]]))
+
+
+##### Visualisation of relative proportions of cell populations in bulkRNA samples #####
+#Obtain for each cell population and bulkRNA sample the estimated relative proportions
+theta.Astbur <- lapply(seq_along(bp.res[[1]]), function(i) 100*colMeans(get.fraction (bp=bp.res[[1]][[i]], which.theta="final", state.or.type="type")))
+theta.Erecya <- lapply(seq_along(bp.res[[2]]), function(i) 100*colMeans(get.fraction (bp=bp.res[[2]][[i]], which.theta="final", state.or.type="type")))
+theta.Lepatt <- lapply(seq_along(bp.res[[3]]), function(i) 100*colMeans(get.fraction (bp=bp.res[[3]][[i]], which.theta="final", state.or.type="type")))
+
+function_auxiliary <- function(list,species,k) {
+ data <- as.data.frame(list)
+ colnames(data) <- 'fraction'
+ data$species <- species
+ data$celltype <- rownames(data)
+ data$part <- k
+ return(data)
+}
+
+data.theta.Astbur <- lapply(seq_along(theta.Astbur), function(i) function_auxiliary(theta.Astbur[[i]],'Astbur',i))
+data.theta.Erecya <- lapply(seq_along(theta.Erecya), function(i) function_auxiliary(theta.Erecya[[i]],'Erecya',i))
+data.theta.Lepatt <- lapply(seq_along(theta.Lepatt), function(i) function_auxiliary(theta.Lepatt[[i]],'Lepatt',i))
+
+data <- do.call('rbind',list(do.call('rbind',data.theta.Astbur),do.call('rbind',data.theta.Erecya),do.call('rbind',data.theta.Lepatt)))
+data$celltype <- factor(data$celltype,levels=CellTypes)
+
+CellTypes_keep <- c('enterocytes 1','enterocytes 2','LREs','BEST4 cells','proliferating secretory cells','goblet cells','Tuft cells','enteroendocrine cells','epithelial DCs')
+data_filter <- data[data$celltype %in% CellTypes_keep,]
+
+#Plot of proportions of epithelial cell populations
+ggplot(data_filter,aes(x=part,y=fraction,color=species)) + geom_point() + facet_wrap(~celltype,ncol=3) + geom_line() + theme_classic() + 
+  xlab('gut part') + ylab('estimated cell type fraction (%)') + scale_color_manual(values=c("#166533","#682E7A","#C588BB"))
+
+
+
+
 
