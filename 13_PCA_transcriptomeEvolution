@@ -11,12 +11,14 @@ library(Augur)
 library(dplyr)
 library(ggfortify)
 
+##### Get input data #####
+
 CellTypes<-c('enterocytes 1','enterocytes 2','LREs','BEST4 cells','epithelial progenitors','goblet cells','Tuft cells','enteroendocrine cells','epithelial DCs','DCs','macrophages 1','macrophages 2','eosinophils','T cells 1','T cells 2','T cells 3','T cells 4','T cells 5','B cells 1','B cells 2','RBCs','mesenchymal cells','endothelial cells','cycling cells')
 colours_CellTypes<-c("#FF7F00","#FE9F38","#FDBF6F","#FED47D","#1F78B4","#5299C6","#84B9D7","#A6CEE3","#B8C0DD","#CAB2D6", "#B295C7","#9A78B8","#6A3D9A","#D6EE91","#CAE98F","#BEE48C","#B2DF8A","#A0D67C","#33A02C","#33A04C","#E31A1C","#FB9A99","#F18499","grey20")
 names(colours_CellTypes) <- CellTypes
 
 #distances based on cpm
-distance <- readRDS('~/scRNA/Seurat/gut/integration/species/data_0324/cpm_distances.rds')
+distance <- readRDS((paste0(path_to_output_of_integration,'distances_cpm.rds'))
 distance <- distance %>% group_by(CellTypes) %>% summarise(mean = mean(Exp))
 distance <- as.data.frame(distance)
 colnames(distance) <- c('CellTypes','distance')
