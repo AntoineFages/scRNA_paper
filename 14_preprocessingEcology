@@ -6,6 +6,8 @@ library(dplyr)
 library(tidyr)
 
 ##### Input stable isotope data #####
+coldata <- read.csv('XXX') #metadata of samples included in the scRNAseq dataset
+
 SI <- read.csv('XXX') #table containing stable isotope (SI) data
 SI <- SI %>% group_by(Species) %>% summarise(d15N = mean(d15N),d13C = mean(d13C))
 gut <- read.csv('XXX') #table containing gut length data
@@ -30,7 +32,13 @@ rownames(SI) <- SI$Species
 ##### Perform PCA on dietary predictors to obtain diet ecology vector ##### 
 pca_SI <- prcomp(SI[,c(a,b,c)],scale=T) #select columns a, b and c (numbers) corresponding to d15N, LPJ_PC2 and gut normalised length (ratio)
 diet_ecology_vector <- pca_SI$x[,1] #The diet ecology vector is the PC1 of this PCA based on dietary predictors
+SI$diet_ecology_vector <- diet_ecology_vector
 
-#Save object
+#Save diet ecology vector object
 saveRDS(diet_ecology_vector,paste0(path_to_output_of_integration,'diet_ecology_vector.rds'))
 
+#Restrict to species of interest
+SI <- SI[SI$Species %in% coldata$species,]
+
+#Save ecological predictors
+saveRDS(SI,paste0(path_to_output_of_integration,'ecological_predictors.rds'))
