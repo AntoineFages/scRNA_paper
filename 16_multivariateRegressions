@@ -85,8 +85,17 @@ lograwCounts_modules <- lograwCounts_modules[lengths(lograwCounts_modules) != 0]
 lograwCounts_modules <- lapply(seq_along(lograwCounts_modules), function(i) lograwCounts_modules[[i]][rownames(lograwCounts_modules[[i]]) %in% Module_genes[[i]],])
 lograwCounts_modules <- lapply(lograwCounts_modules, function(x) na.omit(x))
 
-#Input species time-calibrated trees
+#Input species time-calibrated trees and 
 tree_raw<-read.tree('XXX') #phylogenetic tree from Ronco et al. (2021)
+exclude <- lapply(lograwCounts, function(x) tree_raw$tip.label[! tree_raw$tip.label %in% colnames(x)])
+tree <- lapply(exclude, function(x) ape::drop.tip(phy=tree_raw, tip=x, root.edge = F, rooted = is.rooted(tree_raw)))
+exclude_modules <- lapply(lograwCounts_modules, function(x) tree_raw$tip.label[! tree_raw$tip.label %in% colnames(x)])
+tree_modules <- lapply(exclude_modules, function(x) ape::drop.tip(phy=tree_raw, tip=x, root.edge = F, rooted = is.rooted(tree_raw)))
+exclude_spe<- lapply(lograwCounts_spe, function(x) tree_raw$tip.label[! tree_raw$tip.label %in% colnames(x)])
+tree_spe <- lapply(exclude_spe, function(x) ape::drop.tip(phy=tree_raw, tip=x, root.edge = F, rooted = is.rooted(tree_raw)))
+
+#Ecological predictors
+ecological_predictors <- 
 
 
 
