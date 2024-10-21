@@ -12,18 +12,15 @@ library(dplyr)
 library(ggfortify)
 
 ##### Get input data #####
-
 CellTypes<-c('enterocytes 1','enterocytes 2','LREs','BEST4 cells','epithelial progenitors','goblet cells','Tuft cells','enteroendocrine cells','epithelial DCs','DCs','macrophages 1','macrophages 2','eosinophils','T cells 1','T cells 2','T cells 3','T cells 4','T cells 5','B cells 1','B cells 2','RBCs','mesenchymal cells','endothelial cells','cycling cells')
 colours_CellTypes<-c("#FF7F00","#FE9F38","#FDBF6F","#FED47D","#1F78B4","#5299C6","#84B9D7","#A6CEE3","#B8C0DD","#CAB2D6", "#B295C7","#9A78B8","#6A3D9A","#D6EE91","#CAE98F","#BEE48C","#B2DF8A","#A0D67C","#33A02C","#33A04C","#E31A1C","#FB9A99","#F18499","grey20")
 names(colours_CellTypes) <- CellTypes
 
 #distances based on cpm
-distance <- readRDS((paste0(path_to_output_of_integration,'distances_cpm.rds'))
-distance <- distance %>% group_by(CellTypes) %>% summarise(mean = mean(Exp))
-distance <- as.data.frame(distance)
-colnames(distance) <- c('CellTypes','distance')
-distance$CellTypes <- unfactor(distance$CellTypes)
-rownames(distance) <- distance$CellTypes
+distance_cpm <- readRDS((paste0(path_to_output_of_integration,'distances_cpm.rds'))
+distance_cpm <- distance_cpm %>% group_by(CellTypes) %>% summarise(mean = mean(Exp))
+distance_cpm <- as.data.frame(distance_cpm)
+colnames(distance_cpm) <- c('CellTypes','distance')
 
 #TAI
 TAI<-readRDS(paste0(path_to_output_of_transcriptome_characterisation,'TAI.rds'))
@@ -50,70 +47,33 @@ dNdS <- as.data.frame(dNdS)
 colnames(dNdS) <- c('CellTypes','dNdS')
 
 #Augur distances
-Augur <- readRDS('~/scRNA/Seurat/gut/integration/species/Augur/Augur_results_2000UMIsPerCell.rds')
-#saveRDS(Augur,'~/scRNA/Seurat/gut/integration/species/Augur/Augur_results_1000UMIsPerCell.rds')
-Augur <- readRDS('~/scRNA/Seurat/gut/integration/species/Augur/Augur_results_1000UMIsPerCell.rds')
-species_Augur <- readRDS('~/scRNA/Seurat/gut/integration/species/Augur/Augur_species_pairs.rds')
-species_augur_2000 <- readRDS('~/scRNA/Seurat/gut/integration/species/Augur/Augur_species_pairs_2000.rds')
-
-for (i in 1:length(Augur)) { Augur[[i]]$species <- species_augur_2000[[i]]}
-f5_dist_melt <- readRDS('~/f5.dists_melt_based_on_callability.rds')
-f5_dist_melt$speciesPair1 <- paste0(f5_dist_melt$var1,"_",f5_dist_melt$var2)
-f5_dist_melt$speciesPair2 <- paste0(f5_dist_melt$var2,"_",f5_dist_melt$var1)
-for (i in 1:length(Augur)) { 
-  if (Augur[[i]]$species %in% f5_dist_melt$speciesPair1) {
-    Augur[[i]]$dist <- f5_dist_melt[match(Augur[[i]]$species,f5_dist_melt$speciesPair1),]$cor
-  } else if (Augur[[i]]$species %in% f5_dist_melt$speciesPair2) {
-    Augur[[i]]$dist <- f5_dist_melt[match(Augur[[i]]$species,f5_dist_melt$speciesPair2),]$cor
-  }
-}
-
-Augur <- Augur[-184]
-Augur <- do.call('rbind',Augur)
-Augur$cell_type <- unfactor(Augur$cell_type)
-Augur[Augur$cell_type=='proliferating secretory cells',]$cell_type <- 'epithelial progenitors'
-Augur$cell_type <- factor(Augur$cell_type,levels=CellTypes)
-#remove B cells 2
-Augur <- Augur[Augur$cell_type!='B cells 2',]
-#remove Hapmic, Julorn, Trezeb, Telvit
-exclude_species <- c('Hapmic','Trezeb','Telvit','Julorn')
-Augur$sp1 <- unlist(lapply(Augur$species, function(x) strsplit(x,split='_')[[1]][[1]]))
-Augur$sp2 <- unlist(lapply(Augur$species, function(x) strsplit(x,split='_')[[1]][[2]]))
-Augur <- Augur[!(Augur$sp1 %in% exclude_species),]
-Augur <- Augur[!(Augur$sp2 %in% exclude_species),]
-ggplot(Augur,aes(x=cell_type,y=value,fill=cell_type)) + geom_boxplot() + scale_fill_manual(values=colours_CellTypes) + theme_classic() + NoLegend() + RotatedAxis()
-
-#what we need is a ratio from Augur, not absolute values!
+Augur <- readRDS(paste0(path_to_Augur_output,'Augur_2000UMIsPerCell.rds'))
 Augur <- Augur %>% group_by(cell_type) %>% summarise(mean = mean(value))
 Augur <- as.data.frame(Augur)
 colnames(Augur) <- c('CellTypes','Augur')
-Augur$CellTypes <- unfactor(Augur$CellTypes)
-Augur[Augur$CellTypes=='proliferating secretory cells',]$CellTypes <- 'epithelial progenitors'
-rownames(Augur) <- Augur$CellTypes
 
-
-#then assemble into one big matrix for PCA
-#then compute PCA into 2 dimensions only (instead of 5 initially)
+##### Perform PCA #####
+#Remove all cell populations in which too few species are represented by 20 cells or more
 Tau <- Tau[Tau$CellTypes %in% Augur$CellTypes,]
 TAI <- TAI[TAI$CellTypes %in% Augur$CellTypes,]
 dNdS <- dNdS[dNdS$CellTypes %in% Augur$CellTypes,]
 distance <- distance[distance$CellTypes %in% Augur$CellTypes,]
 Ppi <- Ppi[Ppi$CellTypes %in% Augur$CellTypes,]
 
+#make sure the order of the rows is the same in all objects
 TAI <- TAI[rownames(Tau),]
 dNdS <- dNdS[rownames(Tau),]
 distance <- distance[rownames(Tau),]
 Augur <- Augur[rownames(Tau),]
 Ppi <- Ppi[rownames(Tau),]
 
-
+#Combine all six metrics into one dataframe, df
 df <- cbind(dNdS,Tau,TAI,distance,Augur,Ppi)
 df <- df[,c(1,2,4,6,8,10,12)]
-df <- df[rownames(df) != 'B cells 2',]
 
-#Then build a pca
+#Then perform PCA
 pca <- prcomp(df[,2:7],scale=T)
 
-
-autoplot(pca,label=T,loadings=T,
+#Plot this PCA
+autoplot(pca,label=T,loadings=T)
 
