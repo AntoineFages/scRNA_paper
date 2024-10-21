@@ -15,7 +15,7 @@ source('plotCellTypeProps.R')
 my.se <- readRDS(paste0(path_to_output_of_integration,'integrated_dataset_final.rds'))
 
 #Ecological predictors
-SI <- readRDS(paste0(path_to_output_of_integration,'ecological_predictors.rds')
+SI <- readRDS(paste0(path_to_output_of_integration,'ecological_predictors.rds'))
 
 #Count number of cells in each cell population and species
 aux <- lapply(levels(my.se@meta.data$orig.ident.2), function(x) plyr::count(my.se@meta.data[my.se@meta.data$orig.ident.2==x,]$CellTypes)$freq)
