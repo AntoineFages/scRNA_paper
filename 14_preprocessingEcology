@@ -16,7 +16,7 @@ gut_all$ratio <- gut_all$gut_length / (gut_all$weight)^(1/3)
 exclude_species <- c('Astbur','Orenil')
 SI <- SI[!(SI$Species %in% exclude_species),]
 
-#Add other morphological predictors: LPJ PC2 and oral jaw PC1
+##### Add other morphological predictors: LPJ PC2 and oral jaw PC1 ##### 
 morpho <- read.csv('XXX') #table to morphological data
 morpho <- na.omit(morpho)
 morpho_means = aggregate(morpho[,c(2,3)], list(LPJ$Species), mean)
