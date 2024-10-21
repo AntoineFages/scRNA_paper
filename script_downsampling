@@ -1,1 +1,45 @@
+#!/usr/bin/env Rscript
+#R script for downsampling Seurat object either to a set number of UMIs per cell or to a set number of cells per cell population and species
+
+library(Seurat)
+
+##### Read input files #####
+#Read Seurat object
+my.se <- readRDS(paste0(path_to_output_of_integration,'integrated_dataset_final.rds'))
+
+##### Downsample to 2000 UMIs per Cell #####
+DefaultAssay(my.se)<-"RNA"
+
+counts_all<-GetAssayData(object = my.se, assay="RNA",slot = "counts")
+counts_all<-SampleUMI(counts_all,max.umi=2000)
+
+my.se.2<-CreateSeuratObject(counts_all,project = "CreateSeuratObject",assay = "RNA",meta.data = my.se@meta.data)
+my.se.2<-NormalizeData(my.se.2,normalization.method = "LogNormalize",scale.factor = 10000)
+Idents(my.se.2) <- my.se.2$CellTypes
+
+#Save file
+saveRDS(my.se.2,paste0(path_to_output_of_integration,'integrated_dataset_final_down2000UMIsPerCell.rds'))
+
+##### Downsample to 20 cells per cell population and species #####
+total_indices <- list()
+downsample_function<-function(my.se,n){
+  for (condition in levels(my.se$orig.ident.2)) {
+    for (cell_type in levels(my.se$CellTypes)) {
+      #Get the indices of cells matching the current condition and cell type
+      cells_indices <- which(my.se$orig.ident.2 == condition & my.se$CellTypes == cell_type)
+      if (length(cells_indices)>n){
+        #Randomly sample n cell indices without replacement
+        downsampled_indices <- sample(cells_indices, size = n, replace = FALSE)
+        } else { downsampled_indices <- cells_indices }
+        total_indices<-append(total_indices,downsampled_indices)
+      }
+    }
+  #Add the downsampled cells to the new Seurat object
+  return(subset(my.se, cells = rownames(my.se@meta.data)[unlist(total_indices)]))
+}
+
+my.se.down.20<-downsample_function(my.se,20)
+
+#Save file
+saveRDS(my.se.down.20,paste0(path_to_output_of_integration,'integrated_dataset_final_20CellsMaxPerPseudo.rds'))
 
