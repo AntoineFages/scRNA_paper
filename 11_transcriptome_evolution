@@ -1,5 +1,5 @@
 #!/usr/bin/env Rscript
-#Script 911. R script for characterisation of transcriptome evolution across cell populations
+#Script 11. R script for characterisation of transcriptome evolution across cell populations
 
 library(Seurat)
 library(scibet)
