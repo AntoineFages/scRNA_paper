@@ -2,6 +2,9 @@
 #Script 15. R script for testing associations between epithelial relative abundances and ecology
 
 library(Seurat)
+library(ape)
+library(phytools)
+library(ggplot2)
 library(geiger)
 library(caper)
 library(plyr)
@@ -15,7 +18,7 @@ source('plotCellTypeProps.R')
 my.se <- readRDS(paste0(path_to_output_of_integration,'integrated_dataset_final.rds'))
 
 #Ecological predictors
-SI <- readRDS(paste0(path_to_output_of_integration,'ecological_predictors.rds'))
+ecological_predictors <- readRDS(paste0(path_to_output_of_integration,'ecological_predictors.rds'))
 
 #Count number of cells in each cell population and species
 aux <- lapply(levels(my.se@meta.data$orig.ident.2), function(x) plyr::count(my.se@meta.data[my.se@meta.data$orig.ident.2==x,]$CellTypes)$freq)
@@ -24,5 +27,73 @@ rownames(count_celltypes) <- levels(my.se@meta.data$orig.ident.2) #each row corr
 colnames(count_celltypes) <- levels(my.se@meta.data$CellTypes) #each column corresponds to a cell population
 
 ##### Correlations #####
+#Prepare relative abundances within the epithelium
+count_epithelium <- count_celltypes[,c(1:9)] #epithelial cell populations
+count_abs <- rowSums(count_epithelium[,c(1,2,3,5)]) #epithelial absorptive cell populations
+count_nonabs <- rowSums(count_epithelium[,c(4,6,7,8,9)]) #epithelial non-absorptive cell populations
+count_epiRatio <- count_abs/(count_abs+count_nonabs) #ratio of absoprtive cells within the epithelium
+count_Ratio <- lapply(seq_along(1:9), function(i) count_epithelium[,i]/rowSums(count_epithelium)) #relative abundance of each population within the epithelium
+
+#Add the cell population relative abundances to the ecological predictor table
+ecological_predictors <- ecological_predictors[match(names(count_epiRatio),ecological_predictors$species),]
+ecological_predictors$epiRatio <- count_epiRatio
+ecological_predictors$ent1Ratio <- count_Ratio[[1]]
+ecological_predictors$ent2Ratio <- count_Ratio[[2]]
+ecological_predictors$LRERatio <- count_Ratio[[3]]
+ecological_predictors$B4Ratio <- count_Ratio[[5]]
+ecological_predictors$prolifRatio <- count_Ratio[[4]]
+ecological_predictors$gobletRatio <- count_Ratio[[6]]
+ecological_predictors$tuftRatio <- count_Ratio[[7]]
+ecological_predictors$enteroRatio <- count_Ratio[[8]]
+ecological_predictors$epiDCRatio <- count_Ratio[[9]]
+ecological_predictors <- na.omit(ecological_predictors)
+
+#Input time-calibrated species tree
+tree<-read.tree('XXX')
+exclude = tree$tip.label[! tree$tip.label %in% ecological_predictors$species]
+tree = ape::drop.tip(phy=tree, tip=exclude, root.edge = F, rooted = is.rooted(tree))
+
+#Adapt ecological predictor table
+ecological_predictors <- ecological_predictors[match(tree$tip.label, ecological_predictors$species),]
+
+#Prepare data for pGLS
+caper.data <- comparative.data(phy = tree, data = ecological_predictors, names.col = species)
+name_predictors <- c('d15N','d13C','oral_PC1','LPJ_PC2','normalised_gut_length','diet_ecology_vector')
+number_predictors <- c(a,b,c,d,e,f) #a, b, c, d, e, and f correspond to the column numbers of the predictors in name_predictors
+name_tests <- c('epiRatio','enterocytes_1','enterocytes_2','LREs','BEST4_cells','proliferating_secretory_cells','goblet_cells','tuft_cells','enteroendocrine_cells','epithelial_DCs')
+number_tests <- c(g,h,i,j,k,l,m,n,o,p) #g, h, i, j, k, l, m, n, o, and p correspond to the column numbers of the relative abundances in the name_tests
+
+#Function pGLS under Brownian Motion
+function_pgls_bm <- function(Data,i,j) {
+  formula <- as.formula(paste0(names(Data)[i], " ~ ", names(Data)[j]))
+  mod <- summary(pgls(caper.data,formula=formula,lambda=1))
+  return(mod)
+}
+
+#Function pGLS with a Pagel's lambda tree transformation
+function_pgls_lambda <- function(Data,i,j) {
+  formula <- as.formula(paste0(names(Data)[i], " ~ ", names(Data)[j]))
+  mod1 <- try(pgls(caper.data,formula=formula,lambda='ML'))
+  if (class(mod1) == "try-error") {
+    return(NA)
+  } else {
+    mod=summary(mod1)
+    return(mod)
+  }
+}
+
+#Summaries for linear model, pGLS under BM and pGLS with Pagel's lambda
+sum_lm <- lapply(number_tests, function(x) lapply(number_predictors, function(y) summary(lm(ecological_predictors[,x] ~ ecological_predictors[,y]))))
+sum_bm <- lapply(number_tests, function(x)  lapply(number_predictors, function(y) function_pgls_bm(ecological_predictors,x,y)))
+sum_lambda <- lapply(number_tests, function(x)  lapply(number_predictors, function(y) function_pgls_lambda(ecological_predictors,x,y)))
+
+
+##### Summary Dot Plot #####
+rsquare <- lapply(sum_lambda, function(x) unlist(lapply(x, function(y) y$r.squared)))
+pval <- lapply(sum_lambda, function(x) unlist(lapply(x, function(y) y$coefficients[2,4])))
+slope <- lapply(sum_lambda, function(x) unlist(lapply(x, function(y) y$coefficients[2,1])))
+delta <- c(abs(max(ecological_predictors$d15N) - min(ecological_predictors$d15N)),abs(max(ecological_predictors$d13C) - min(ecological_predictors$d13C)),
+          abs(max(ecological_predictors$oral_PC1) - min(ecological_predictors$oral_PC1)), abs(max(ecological_predictors$LPJ_PC2) - min(ecological_predictors$LPJ_PC2)),
+          abs(max(ecological_predictors$ratio) - min(ecological_predictors$ratio)),abs(max(ecological_predictors$diet_ecology_vector) - min(ecological_predictors$diet_ecology_vector)) )
 
 
