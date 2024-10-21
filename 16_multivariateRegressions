@@ -13,6 +13,7 @@ library(viridis)
 library(cowplot)
 library(grid)
 library(gridExtra)
+library(geomorph)
 
 ##### Read input files #####
 
@@ -141,9 +142,9 @@ fit_function_unique_predictor_lambda <- function(Data,Si,Tree,i) {
 }
 
 #Run the function for each gene set
-fit_lambda_list_global <- lapply(seq_along(length(lograwCounts_20Prct)), function(i) fit_function_unique_predictor_lambda(lograwCounts_20Prct,ecological_predictors,tree,i))
-fit_lambda_list_spe <- lapply(seq_along(length(lograwCounts_spe)), function(i) fit_function_unique_predictor_lambda(lograwCounts_spe,ecological_predictors,tree,i))
-fit_lambda_list_modules <- lapply(seq_along(length(lograwCounts_modules)), function(i) fit_function_unique_predictor_lambda(lograwCounts_modules,ecological_predictors,tree,i))
+fit_lambda_list_global <- lapply(seq_along(length(lograwCounts_20Prct)), function(i) fit_function_unique_predictor_lambda(lograwCounts_20Prct,ecological_predictors_global,tree,i))
+fit_lambda_list_spe <- lapply(seq_along(length(lograwCounts_spe)), function(i) fit_function_unique_predictor_lambda(lograwCounts_spe,ecological_predictors_spe,tree,i))
+fit_lambda_list_modules <- lapply(seq_along(length(lograwCounts_modules)), function(i) fit_function_unique_predictor_lambda(lograwCounts_modules,ecological_predictors_modules,tree,i))
 
 #Function to run MANOVA on each fitted object
 function_manova <- function(fit.list) {
@@ -252,10 +253,22 @@ function_plot(df_spe)
 function_plot(df_modules)
 
     
+##### Phylogenetic two block PLS #####
 
+#Function:
+PLS_function <- function(Data,Si,Tree) {
+    PLS.aux <- lapply(seq_along(Data), function(i) phylo.integration(as.matrix(Data[[i]]),apply(as.matrix(Si[[i]][,c(a,b,c,d,e,f),drop=F]),2,scale_to_variance,1),Tree[[i]])) #a,b,c,d,e and f correspond to the ecological predictors (except diet ecology vector)
+    return(PLS.aux)
+}
 
+#Use this function for each gene set
+PLS_global <- PLS_function(lograwCounts_20Prct,ecological_predictors_global,tree)
+PLS_spe <- PLS_function(lograwCounts_spe,ecological_predictors_spe,tree_spe)
+PLS_modules <- PLS_function(lograwCounts_modules,ecological_predictors_modules,tree_modules)
 
+#Obtain right vectors from these PLS objects
+right_global <- lapply(PLS_global, function(x) as.data.frame(x$right.pls.vectors[,1,drop=F]))
+right_spe <- lapply(PLS_spe, function(x) as.data.frame(x$right.pls.vectors[,1,drop=F]))
+right_modules <- lapply(PLS_modules, function(x) as.data.frame(x$right.pls.vectors[,1,drop=F]))
 
-
-
-
+#These values can then be compared to estimate the relative importance of each predictor in driving correlations
