@@ -31,6 +31,7 @@ lograwCounts <- lapply(seq_along(lograwCounts), function(i) lograwCounts[[i]][,c
 
 ##Time-calibrated species tree
 tree <- readRDS(paste0(path_to_output_of_integration,'tree_byCellType.rds'))
+tree_enterocytes1 <- tree[[1]]
 
 #Ecological predictors
 ecological_predictors <- readRDS(paste0(path_to_output_of_integration,'ecological_predictors.rds'))
@@ -59,6 +60,9 @@ tree_gut <- read.tree('XXX')
 tree_LPJ <- read.tree('XXX')
 tree_OJ <- read.tree('XXX')
 tree_dietEcology <- read.tree('XXX')
+
+#Combine all trees into one list of trees
+tree_predictors <- list(tree_d15N,tree_d13C,tree_gut,tree_LPJ,tree_OJ,tree_dietEcology)
 
 #Function to visualise rates of evolution on a phylogenetic tree, courtesy of Julien Clavel
 plotShifts <- function(phylo, rates,...){
@@ -109,24 +113,50 @@ plotShifts <- function(phylo, rates,...){
     
   }
 
-##### Plot correlations between tip values in traits and in gene sets correlating with these traits #####
+##### Find correlations between tip values in traits and in gene sets correlating with these traits #####
 
 #First check whether loadings are positive or negative: are genes correlating positively or negatively with traits
-vector_multiply <- lapply(seq_along(enterocytes1_intersect), function(i) unlist(lapply(colnames(enterocytes1_intersect[[i]]), function(x) PLS_results[[i]]$left.pls.vectors[x,])))
+vector_multiply <- lapply(seq_along(enterocytes1_intersect), function(i) unlist(lapply(colnames(enterocytes1_intersect[[i]]), function(x) PLS_results[[i]][[1]]$left.pls.vectors[x,])))
 vector_multiply <- lapply(vector_multiply, function(y) unlist(lapply(y, function(x) x/abs(x))))
 vector_pos <- lapply(vector_multiply, function(x) x[x>0])
 vector_neg <- lapply(vector_multiply, function(x) x[x<0])
 
-#only take ones with positive and negative correlations, respectively
+#Subset cpm matrices based on these two types of genes
 matrix_pos <- lapply(seq_along(enterocytes1_intersect), function(i) enterocytes1_intersect[[i]][,names(vector_pos[[i]])])
 matrix_neg <- lapply(seq_along(enterocytes1_intersect), function(i) enterocytes1_intersect[[i]][,names(vector_neg[[i]])])
 
-matrix_neg_complement <- lapply(matrix_neg, function(x) do.call('cbind',((lapply(seq_along(1:ncol(x)), 
-                                                               function(i) unlist(lapply (x[,i], 
-                                                                                   function(y) max(x[,i]) + min(x[,i]) - y)))))))
+#Create complement matrix for the genes correlating negatively
+matrix_neg_complement <- lapply(matrix_neg, function(x) do.call('cbind',((lapply(seq_along(1:ncol(x)), function(i) unlist(lapply (x[,i], function(y) max(x[,i]) + min(x[,i]) - y)))))))
 for (i in 1:6) { colnames(matrix_neg_complement[[i]]) <- colnames(matrix_neg[[i]])}
 matrix_combined <- lapply(seq_along(matrix_pos), function(i) cbind(matrix_pos[[i]],matrix_neg_complement[[i]]))
 
+#Get mean value for each gene set
+matrix_combined_rowMeans <- lapply(matrix_combined, function(x) rowMeans(x))
+
+#Combine trait values and gene expression mean values in one table
+combined_corr <- as.data.frame(do.call(cbind, matrix_combined_rowMeans))
+combined_corr <- cbind(combined_corr,ecological_predictors[[1]])
+
+#Estimate ancestral states and rates of evolution
+function_rate_contMap <- function(Matrix,i) {
+  aux <- unlist(list(as.numeric(as.matrix(Matrix)[,i])))
+  names(aux) <- rownames(Matrix)
+  obj_aux <- contMap(tree_predictors[[i]],aux,plot=FALSE)
+  rates <- unlist(lapply(obj_aux$tree$maps, function(x) abs(max(as.numeric(names(x)))-min(as.numeric(names(x))))))
+  return(rates)
+}
+
+#Obtain rates of evolution for each ecological predictor too
+rates_predictors <-lapply(seq_along(tree_predictors), function(i) tree_predictors[[i]]$edge.length/tree_enterocytes1$edge.length)
+
+#Plot these rates on the species time-calibrated tree for each ecological predictor
+function_plot_combined_rates <- function(i) {
+  rates_combined <-function_rate_contMap(combined_corr,i)
+  par(mfrow = c(1, 2))
+  plotShifts(tree_enterocytes1,rates_predictors[[i]])
+  plotShifts(tree_enterocytes1,rates_combined)
+  mtext(paste0(predictors[[i]]," vs Gene Expression rates"), side = 3, line = - 2, outer = TRUE)
+}
 
 
 
