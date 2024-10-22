@@ -196,6 +196,6 @@ function_information <- function(genes,name_of_predictor) {
 #including ecologically relevant genes and the set of all genes expressed in enterocytes 1
 
 
-
+##### Gene Ontology Enrichment Analysis #####
 
 
