@@ -18,6 +18,9 @@ lograwCounts<-readRDS(paste0(path_to_output_of_integration,'logcpm_byCellType.rd
 
 #Restrict to genes expressed in at least 20% of cells
 
+genes_20Prct <- lapply(genes_Prct_CellTypes, function(x) x[x$Cell_proportion > 0.2,])
+lograwCounts <- lapply(seq_along(lograwCounts), function(i) lograwCounts[[i]][,colnames(lograwCounts[[i]]) %in% genes_20Prct[[i]]$Markers])
+
 ##Time-calibrated species tree
 tree <- readRDS(paste0(path_to_output_of_integration,'tree_byCellType.rds'))
 
