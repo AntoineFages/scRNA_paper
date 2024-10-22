@@ -142,6 +142,7 @@ nonphyloPLS_function <- function(Data,Si) {
 #Run these two functions and obtain gene loadings
 PLS_results <- PLS_function(lograwCounts,ecological_predictors,tree)
 nonphyloPLS_results <- nonphyloPLS_function(lograwCounts,ecological_predictors)
+saveRDS(PLS_results,paste0(path_to_output_of_integration,'2BPLS_results.rds'))
 
 order_loading_function <- function(list_PLS) {
   lapply(list_PLS, function(x) lapply(x, function(y) y$left.pls.vectors[order(-abs(y$left.pls.vectors[,1])),,drop=FALSE]))
