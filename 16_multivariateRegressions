@@ -37,7 +37,7 @@ module_numbers <- module_numbers[-c(1,11,22)]
 
 
 #Cell population-specific genes
-genes_spe <- readRDS('XXX') #
+genes_spe <- readRDS(paste0(path_to_output_of_integration,'genes_specific.rds'))
 
 #cpm pseudobulk data
 CellTypes<-c('enterocytes 1','enterocytes 2','LREs','BEST4 cells','proliferating secretory cells','goblet cells','Tuft cells',
