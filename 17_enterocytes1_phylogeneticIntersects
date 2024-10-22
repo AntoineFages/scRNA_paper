@@ -169,7 +169,7 @@ saveRDS(intersects_double,paste0(path_to_output_of_integration,'enterocytes1_int
 Tau <- readRDS('~/zebrafish_tilapia_genes/Tau_crossTissues_log_all_0324.rds')
 
 #gsi (Gene Specificity Index)
-gsi <- readRDS('~/scRNA/Seurat/gut/integration/species/data_0324/gsi_gut_cpm.rds')
+gsi <- readRDS(paste0(path_to_output_of_integration,'gsi_byCellType.rds'))
 
 
 
