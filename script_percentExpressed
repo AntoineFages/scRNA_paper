@@ -1,3 +1,7 @@
+#!/usr/bin/env Rscript
+#R script for calculating for each cell population and gene the percentage of cells within the cell population expressing the gene
+
+library(Seurat)
 
 
 
@@ -33,4 +37,13 @@ calc_helper <- function(object,genes){
 
 #Input Seurat integrated object
 my.se <- readRDS(paste0(path_to_output_of_integration,'integrated_dataset_final.rds'))
+
+#Get Seurat object for each cell population
+Idents(my.se) <- my.se$CellTypes
+my.se.subset <- lapply(levels(my.se$CellTypes), function(x) subset(my.se,idents=c(x)))
+
+#Keep genes expressed in at least 2 cells in each species
+
+
+#Calculate within each cell type the percentage of cells expressing each gene
 
