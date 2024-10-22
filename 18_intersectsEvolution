@@ -14,3 +14,28 @@ lbrary(geomorph)
 library(tidyr)
 
 ##### Read input files #####
+
+#Matrices of log(cpm) within each cell population
+lograwCounts<-readRDS(paste0(path_to_output_of_integration,'logcpm_byCellType.rds'))
+
+#List of cell populations associated with these
+CellTypes<-c('enterocytes 1','enterocytes 2','LREs','BEST4 cells','proliferating secretory cells','goblet cells','Tuft cells',
+            'enteroendocrine cells','epithelial DCs','DCs','macrophages 1','macrophages 2','eosinophils','T cells 1','T cells 2',
+            'T cells 3','T cells 4','T cells 5','B cells 1','B cells 2','RBCs','mesenchymal cells','endothelial cells','cycling cells')
+CellTypes <- CellTypes[-c(13,18,20,21,23,24)]
+
+#Restrict to genes expressed in at least 10% of cells to avoid genes that are only sporadically expressed
+genes_Prct_CellTypes <- readRDS(paste0(path_to_output_of_integration,'genes_PrctExpr.rds'))
+genes_10Prct <- lapply(genes_Prct_CellTypes, function(x) x[x$Cell_proportion > 0.1,])
+lograwCounts <- lapply(seq_along(lograwCounts), function(i) lograwCounts[[i]][,colnames(lograwCounts[[i]]) %in% genes_10Prct[[i]]$Markers])
+
+##Time-calibrated species tree
+tree <- readRDS(paste0(path_to_output_of_integration,'tree_byCellType.rds'))
+
+#Ecological predictors
+ecological_predictors <- readRDS(paste0(path_to_output_of_integration,'ecological_predictors.rds'))
+
+#Make sure order of ecological predictors and data match order of tree tips
+lograwCounts <- lapply(seq_along(lograwCounts), function(i) lograwCounts[[i]][tree[[i]]$tip.label,])
+ecological_predictors <- lapply(lograwCounts, function(x) ecological_predictors[ecological_predictors$species %in% colnames(x),])
+ecological_predictors <- lapply(seq_along(ecological_predictors), function(i) ecological_predictors[[i]][tree[[i]]$tip.label,])
