@@ -184,10 +184,12 @@ Tau <- readRDS(paste0(path_to_output_of_transcriptome_characterisation,'Tau.rds'
 gsi <- readRDS(paste0(path_to_output_of_integration,'gsi_byCellType.rds'))
 
 #Summarise these three parameters in one table
-function_information <- function(genes,n_predictor) {
+function_information <- function(genes,name_of_predictor) {
             Tau_aux <- Tau[match(genes,Tau$geneID),]$TissueSpe
             gsi_aux <- gsi[match(genes,rownames(gsi)),]
             rate_aux <- df_rates[match(genes,df_rates$geneID),]$rate
+            df_aux <- data.frame(Tau=Tau_aux,gsi=gsi_aux,rate=rate_aux,type=rep(name_of_predictor,length(Tau_aux)))
+            return(df_aux)
 }
 
 #This function can then be used to characterise the Tissue Specificy, Gene Specificity Index and Rate of Gene Expression Evolution of any get set, 
