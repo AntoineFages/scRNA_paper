@@ -26,9 +26,7 @@ data <- lapply(data, function(x) x[rownames(x)!='Astbur',])
 data <- lapply(data, function(x) x[rownames(x)!='Orenil',])
 
 #Ecological predictors
-
-
-
+ecological_predictors <- readRDS(paste0(path_to_output_of_integration,'ecological_predictors.rds'))
 
 #Functions to perform linear model and pGLS with Brownian Motion
 #Linear model
@@ -49,6 +47,7 @@ function_gls_bm <- function(Data,Tree,g) {
     }
 }
 
+#Run these functions for each gene expressed in each cell population
 lm_data_genes <- lapply(data_genes, function(x) unlist(lapply(2:3, function(i) function_lm(x,i))))
 gls_bm_data_genes <- lapply(data_genes, function(x) unlist(lapply(2:3, function(i) function_gls_bm(x,tree,i))))
 
