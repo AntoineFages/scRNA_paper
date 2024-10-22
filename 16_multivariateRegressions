@@ -104,6 +104,9 @@ tree_spe <- lapply(exclude_spe, function(x) ape::drop.tip(phy=tree_raw, tip=x, r
 exclude_modules <- lapply(lograwCounts_modules, function(x) tree_raw$tip.label[! tree_raw$tip.label %in% colnames(x)])
 tree_modules <- lapply(exclude_modules, function(x) ape::drop.tip(phy=tree_raw, tip=x, root.edge = F, rooted = is.rooted(tree_raw)))
 
+#Save list of trees
+saveRDS(tree,paste0(path_to_output_of_integration,'tree_byCellType.rds'))
+
 #Ecological predictors
 ecological_predictors <- readRDS(paste0(path_to_output_of_integration,'ecological_predictors.rds'))
 ecological_predictors_global <- lapply(lograwCounts, function(x) ecological_predictors[ecological_predictors$species %in% colnames(x),])
