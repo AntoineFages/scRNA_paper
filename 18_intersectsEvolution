@@ -1,1 +1,16 @@
-1
+#!/usr/bin/env Rscript
+#Script 18. R script for modelling evolution of gene expression of ecologically relevant genes
+
+library(Seurat)
+library(dplyr)
+library(stats)
+library(ape)
+library(reshape2)
+library(geomorph)
+library(caper)
+library(geiger)
+library(nlme)
+lbrary(geomorph)
+library(tidyr)
+
+##### Read input files #####
