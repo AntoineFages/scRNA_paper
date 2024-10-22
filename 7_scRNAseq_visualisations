@@ -278,6 +278,9 @@ cpm_byCellType <- as.data.frame(function_cpm_pseudobulk(my.se,20)[[2]])
 scale_cpm <- scale(cpm_byCellType,center = FALSE, scale = colSums(cpm_byCellType))
 gsi_byCellType <- scale_cpm/rowMeans(scale_cpm)
 
+#save gsi object
+saveRDS(gsi_byCellType,paste0(path_to_output_of_integration,'gsi_byCellType.rds'))
+
 #Define cell population-specific genes as genes with gsi > 6, ~ top 1% of gsi values
 lengths_spe <- unlist(lapply(seq_along(colnames(gsi_byCellType)), function(i) length(gsi_byCellType[,i][gsi_byCellType[,i]>6]))) 
 names_spe <- lapply(seq_along(colnames(gsi_byCellType)), function(i) names(gsi_byCellType[,i][gsi_byCellType[,i]>5]))
