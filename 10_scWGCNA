@@ -20,8 +20,6 @@ DefaultAssay(my.se)<-"RNA"
 my.se <- RunPCA(my.se,npcs=100)
 my.se.pcells <- calculate.pseudocells(s.cells = my.se, seeds=0.2,nn=100,reduction="pca",dims=1:100)
 
-saveRDS(my.se.pcells, file= paste0(PATH,'pcells_AdultGut_',format(Sys.Date(), "%d%m%y"),'.rds'))
-
 var.feat <- VariableFeatures(my.se)
 
 #Run scWGCNA
@@ -33,6 +31,9 @@ module_expression <- scW.p.expression(s.cells=my.se,scWGCNA.data=my.se.scWGCNA,m
 #Create networks
 my.se.scWGCNA <- scWGCNA.networks(scWGCNA.data = my.se.scWGCNA)
 
+#Save Module genes
+Module_genes <- my.se.scWGCNA$module.genes
+saveRDS(Module_genes,paste0(path_to_output_of_integration,'scWGCNA_module_genes.rds'))
 
 ##### Heatmap of module pseudobulk average expression #####
 #Get dynamic colors
