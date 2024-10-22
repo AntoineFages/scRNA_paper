@@ -124,6 +124,8 @@ lograwCounts <- lapply(lograwCounts, function(x) t(x))
 lograwCounts_spe <- lapply(lograwCounts_spe, function(x) t(x))
 lograwCounts_modules <- lapply(lograwCounts_modules, function(x) t(x))
 
+#Save lograwCounts
+saveRDS(lograwCounts,paste0(path_to_output_of_integration,'logcpm_byCellType.rds'))
 
 ##### run mvMORPH ##### 
 #'Global' gene set: genes expressed in at least 20% of cells within each cell population
