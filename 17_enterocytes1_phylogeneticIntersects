@@ -198,9 +198,10 @@ function_information <- function(genes,name_of_predictor) {
 
 
 ##### Gene Ontology Enrichment Analysis #####
-geneName<-read.csv(file='XXX')
-go.names<-read.csv('XXX')
-gene.go<-read.csv('XXX')
+
+go.names<-read.csv('XXX') #table of GO terms and descriptions, retrieved from AnnotationHub
+gene.go<-read.csv('XXX') #table of correspondence between genes and GO terms, retrieved from AnnotationHub
+geneName<-read.csv(file='XXX') #annotation linking geneID and gene name, derived from gtf annotation file
 go.names<-go.names[go.names$GOID %in% gene.go$GOALL,]
 
 #Function to perform GO enrichment analysis of any set of genes compared to a universe
