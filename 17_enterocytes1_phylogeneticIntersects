@@ -17,7 +17,9 @@ library(nlme)
 lograwCounts<-readRDS(paste0(path_to_output_of_integration,'logcpm_byCellType.rds'))
 
 #List of cell populations associated with these
-
+CellTypes<-c('enterocytes 1','enterocytes 2','LREs','BEST4 cells','proliferating secretory cells','goblet cells','Tuft cells',
+            'enteroendocrine cells','epithelial DCs','DCs','macrophages 1','macrophages 2','eosinophils','T cells 1','T cells 2',
+            'T cells 3','T cells 4','T cells 5','B cells 1','B cells 2','RBCs','mesenchymal cells','endothelial cells','cycling cells')
 CellTypes <- CellTypes[-c(13,18,20,21,23,24)]
 
 #Restrict to genes expressed in at least 10% of cells to avoid genes that are only sporadically expressed
@@ -84,6 +86,11 @@ gls_bm_data_genes <- lapply(seq_along(data_final), function(i) lapply(data_final
 #The p-values can then be extracted for each gene and ecological predictor, and used to select ecologically relevant genes,
 #with the threshold p-val(lm) < 0.05 and p-val(pGLS) < 0.05
 
+#List of the 6 predictors and two methods
+predictors <- c('d15N','d13C','ratio','LPJ_PC2','oral_PC1','diet_ecology_vector')
+pval_methods <- c('logpval_lm','logpval_bm')
+
+#Function to summarise all the lm and pGLS results
 get_predictor <- function(list_data_genes,predictors,k,l) {
     aux <- list()
     df <- list()
@@ -93,18 +100,18 @@ get_predictor <- function(list_data_genes,predictors,k,l) {
             aux[[i]][[j]] <- list_data_genes[[i]][[j]][[k]] #one result for each gene within each cell population and ecological predictor
         }
         aux[[i]] <- unlist(aux[[i]])
-        df[[i]] <- data.frame(pval=aux[[i]],celltype=rep(celltype[[i]],length(aux[[i]])),predictor=rep(predictors[[k]],length(aux[[i]])))
-        if (l !=4) {
-#     df[[i]]$pval <- (-log10(df[[i]]$pval))
-#     }
-#     colnames(df[[i]])[[1]] <- pval_methods[[l]]
-#     df[[i]]$geneID <- colnames(lograwCounts[[match(celltype[[i]],CellTypes)]])
-#     df[[i]] <- df[[i]][df[[i]]$geneID %in% genes_10Prct[[match(celltype[[i]],CellTypes)]]$Markers,]
-#   }
-#   return(df)
-# }
+        df[[i]] <- data.frame(pval=aux[[i]],celltype=rep(CellTypes[[i]],length(aux[[i]])),predictor=rep(predictors[[k]],length(aux[[i]])))
+        df[[i]]$pval <- (-log10(df[[i]]$pval))
+        colnames(df[[i]])[[1]] <- pval_methods[[l]]
+        df[[i]]$geneID <- colnames(lograwCounts[[match(CellTypes[[i]],CellTypes)]])
+    }
+    return(df)
+}
 
-
+#Summarise results
+lm_summary_tables <- lapply(seq_along(predictors), function(i) do.call(rbind,get_predictor(lm_data_genes,predictors,i,1)))
+bm_summary_tables <- lapply(seq_along(predictors), function(i) do.call(rbind,get_predictor(gls_bm_data_genes,predictors,i,2)))
+univariate_summary_tables <- lapply(seq_along(lm_summary_table), function(i) cbind(lm_summary_tables[[i]],bm_summary_tables[[i]]) #summary table for each cell population
 
 ##### Methods 3 & 4: multivariate 2B-PLS and phylogenetic 2B-PLS #####
 
