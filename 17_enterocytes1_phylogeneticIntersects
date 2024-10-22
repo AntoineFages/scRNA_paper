@@ -1,1 +1,21 @@
+#!/usr/bin/env Rscript
+#Script 17. R script for identifying ecologically relevant genes in enterocytes 1
 
+library(Seurat)
+library(mvMORPH)
+library(ggplot)
+library(ggtree)
+library(dplyr)
+library(stats)
+library(ape)
+library(reshape2)
+library(viridis)
+library(cowplot)
+library(grid)
+library(gridExtra)
+library(geomorph)
+
+
+##### Read input files #####
+
+#Matrices of log(cpm) within each cell population
