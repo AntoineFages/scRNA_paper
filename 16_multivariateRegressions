@@ -21,7 +21,7 @@ library(geomorph)
 genes_Prct_CellTypes <- readRDS('XXX') #list of tables containing the % of cells expressing each gene within each cell population
 
 #scWGCNA module data
-Module_genes <- readRDS('XXX') #
+Module_genes <- readRDS(paste0(path_to_output_of_integration,'scWGCNA_module_genes.rds'))
 module_numbers<-c(1:25)
 
 #Vector of cell population in which module expression is the highest, for each scWGCNA module
