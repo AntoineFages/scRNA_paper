@@ -18,6 +18,40 @@ library(geomorph)
 
 ##### Read input files #####
 
-#
-
 #Matrices of log(cpm) within each cell population
+lograwCounts<-readRDS('~/scRNA/Seurat/gut/integration/species/gut_lograwCounts_byCellType_0224.rds')
+
+data <- lapply(lograwCounts, function(x) t(x))
+data <- lapply(data, function(x) x[rownames(x)!='Astbur',])
+data <- lapply(data, function(x) x[rownames(x)!='Orenil',])
+
+#Ecological predictors
+
+
+
+
+#Functions to perform linear model and pGLS with Brownian Motion
+#Linear model
+function_lm <- function(Data,g) {
+    summary(lm(Data[,1] ~ Data[,g]))$coefficients[2,4]
+}
+
+#pGLS Brownian Motion
+function_gls_bm <- function(Data,Tree,g) {
+    formula <- as.formula(paste0(names(Data)[1], " ~ ", names(Data)[g]))
+    mod1 <- try(gls(formula,data=Data,correlation = corBrownian(value=1,phy=Tree[[n_CellType]],form = ~species),method='ML'))
+    if (class(mod1) == "try-error") {
+        return(NA)
+    } else {
+        mod=summary(mod1)
+        p = mod$tTable[2,4]
+        return(p)
+    }
+}
+
+lm_data_genes <- lapply(data_genes, function(x) unlist(lapply(2:3, function(i) function_lm(x,i))))
+gls_bm_data_genes <- lapply(data_genes, function(x) unlist(lapply(2:3, function(i) function_gls_bm(x,tree,i))))
+
+
+
+
