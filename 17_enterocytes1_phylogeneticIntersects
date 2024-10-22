@@ -16,10 +16,6 @@ library(nlme)
 #Matrices of log(cpm) within each cell population
 lograwCounts<-readRDS(paste0(path_to_output_of_integration,'logcpm_byCellType.rds'))
 
-data <- lapply(lograwCounts, function(x) t(x))
-data <- lapply(data, function(x) x[rownames(x)!='Astbur',])
-data <- lapply(data, function(x) x[rownames(x)!='Orenil',])
-
 ##Time-calibrated species tree
 tree <- readRDS(paste0(path_to_output_of_integration,'tree_byCellType.rds'))
 
@@ -27,11 +23,9 @@ tree <- readRDS(paste0(path_to_output_of_integration,'tree_byCellType.rds'))
 ecological_predictors <- readRDS(paste0(path_to_output_of_integration,'ecological_predictors.rds'))
 
 #Make sure order of ecological predictors and data match order of tree tips
-ecological_predictor <- lapply(lograwCounts, function(x) ecological_predictors[ecological_predictors$species %in% colnames(x),])
+lograwCounts <- lapply(seq_along(lograwCounts), function(i) lograwCounts[[i]][tree[[i]]$tip.label,])
+ecological_predictors <- lapply(lograwCounts, function(x) ecological_predictors[ecological_predictors$species %in% colnames(x),])
 ecological_predictors <- lapply(seq_along(ecological_predictors), function(i) ecological_predictors[[i]][tree[[i]]$tip.label,])
-
-
-
 
 #Functions to perform linear model and pGLS with Brownian Motion
 #Linear model
@@ -51,6 +45,18 @@ function_gls_bm <- function(Data,Tree,g) {
         return(p)
     }
 }
+
+data_byGene <- lapply(lograwCounts, function(x) (seq_along(colnames(x)), as.data.frame(function(i) x[,i,drop=F])))
+
+#Function to prepare data for lm and pGLS
+function_prepare <- function(data,i) {
+    data$d15N <- ecological_predictors[[i]][match(rownames(data),rownames(ecological_predictors[[i]]),]$d15N
+    data$d13C <- 
+    data$ratio <- 
+    data$LPJ_PC2 <- 
+    data$oral_PC1 <- 
+    data$diet_ecology_vector <- 
+
 
 #Run these functions for each gene expressed in each cell population
 lm_data_genes <- lapply(data_genes, function(x) unlist(lapply(2:3, function(i) function_lm(x,i))))
