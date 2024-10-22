@@ -16,6 +16,8 @@ library(nlme)
 #Matrices of log(cpm) within each cell population
 lograwCounts<-readRDS(paste0(path_to_output_of_integration,'logcpm_byCellType.rds'))
 
+#Restrict to genes expressed in at least 20% of cells
+
 ##Time-calibrated species tree
 tree <- readRDS(paste0(path_to_output_of_integration,'tree_byCellType.rds'))
 
@@ -51,16 +53,25 @@ data_byGene <- lapply(lograwCounts, function(x) (seq_along(colnames(x)), as.data
 #Function to prepare data for lm and pGLS
 function_prepare <- function(data,i) {
     data$d15N <- ecological_predictors[[i]][match(rownames(data),rownames(ecological_predictors[[i]]),]$d15N
-    data$d13C <- 
-    data$ratio <- 
-    data$LPJ_PC2 <- 
-    data$oral_PC1 <- 
-    data$diet_ecology_vector <- 
+    data$d13C <- ecological_predictors[[i]][match(rownames(data),rownames(ecological_predictors[[i]]),]$d13C
+    data$ratio <- ecological_predictors[[i]][match(rownames(data),rownames(ecological_predictors[[i]]),]$ratio
+    data$LPJ_PC2 <- ecological_predictors[[i]][match(rownames(data),rownames(ecological_predictors[[i]]),]$LPJ_PC2
+    data$oral_PC1 <- ecological_predictors[[i]][match(rownames(data),rownames(ecological_predictors[[i]]),]$oral_PC1
+    data$diet_ecology_vector <- ecological_predictors[[i]][match(rownames(data),rownames(ecological_predictors[[i]]),]$diet_ecology_vector
+    data$species <- rownames(data)
+    colnames(data) <- c('gene','d15N','d13C','ratio','LPJ_PC2','oral_PC1','diet_ecology_vector','species')
+    data <- data[tree[[i]]$tip.label,]
+    return(data)
+}
+
+#Use this function to get all data ready
+data_final <- lapply(seq_along(data_byGene), function(i) lapply(data_byGene[[i]], function(x) function_prepare(x,i)))
+
+#Run the lm and pGLS functions for each gene expressed in each cell population
 
 
-#Run these functions for each gene expressed in each cell population
-lm_data_genes <- lapply(data_genes, function(x) unlist(lapply(2:3, function(i) function_lm(x,i))))
-gls_bm_data_genes <- lapply(data_genes, function(x) unlist(lapply(2:3, function(i) function_gls_bm(x,tree,i))))
+lm_data_genes <- lapply(data_final, function(x) unlist(lapply(2:3, function(i) function_lm(x,i))))
+gls_bm_data_genes <- lapply(data_final, function(x) unlist(lapply(2:3, function(i) function_gls_bm(x,tree,i))))
 
 
 
