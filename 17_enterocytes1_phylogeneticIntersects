@@ -150,7 +150,7 @@ ordered_loadings <- order_loading_function(PLS_results)
 nonphyloordered_loadings <- order_loading_function(nonphyloPLS_results)
 
 #Combine univariate and multivariate approaches
-univariate_significant <- lapply(univariate_summary_tables, function(x) x[x$logpval_bm > 1.3 & x$logpval_lm > 1.3,]
+univariate_significant <- lapply(univariate_summary_tables, function(x) x[x$logpval_bm > 1.3 & x$logpval_lm > 1.3,])
 univariate_significant_enterocytes1 <- lapply(univariate_significant, function(x) x[x$celltype='enterocytes 1',])
 intersects <- lapply(1:6, function(i) intersect(rownames(ordered_loadings[[i]][[1]])[1:nrow(univariate_significant_enterocytes1[[i]])], univariate_significant_enterocytes1[[i]]$geneID))
 intersects_double <- lapply(1:6, function(i) intersect(rownames(nonphyloordered_loadings[[i]][[1]])[1:nrow(univariate_significant_enterocytes1[[i]])], intersects[[i]]))
@@ -161,17 +161,37 @@ saveRDS(intersects_double,paste0(path_to_output_of_integration,'enterocytes1_int
 
 ##### Characterisation of ecologically relevant genes #####
 
-#1. fitContinuous
+#Infer rates of gene expression evolution for each gene expressed in enterocytes 1
+lograwCounts_enterocytes1 <- lograwCounts[[1]]
+data_fitContinuous <- lapply(seq_along(colnames(lograwCounts_enterocytes1)), function(i) lograwCounts_enterocytes1[,i,drop=F])
+for (i in 1:length(data_fitContinuous)){
+    colnames(data_fitContinuous[[i]]) <- c('geneID')
+    data_fitContinuous[[i]] <- data_genes[[i]][tree[[1]]$tip.label,,drop=F]
+ }
 
+#Run fitContinuous to model a Brownian Motion
+fit_BM <- lapply(data_fitContinuous, function(x) fitContinuous(dat=x,phy=tree[[1]],SE=0,model='BM',ncores=10))
 
-#2. 
-#Tissue specificity
-Tau <- readRDS('~/zebrafish_tilapia_genes/Tau_crossTissues_log_all_0324.rds')
+#Obtain rate of evolution
+rates <- unlist(lapply(fit_BM, function(x) x$opt$sigsq))
+gene_names <- lapply(genes_10Prct[1]], function(x) (x$Markers))
+df_rates <- data.frame(geneID=gene_names, rate=rates)
 
-#gsi (Gene Specificity Index)
+#Input Tissue specificity
+Tau <- readRDS(paste0(path_to_output_of_transcriptome_characterisation,'Tau.rds'))
+
+#Input gsi (Gene Specificity Index)
 gsi <- readRDS(paste0(path_to_output_of_integration,'gsi_byCellType.rds'))
 
+#Summarise these three parameters in one table
+function_information <- function(genes,n_predictor) {
+            Tau_aux <- Tau[match(genes,Tau$geneID),]$TissueSpe
+            gsi_aux <- gsi[match(genes,rownames(gsi)),]
+            rate_aux <- df_rates[match(genes,df_rates$geneID),]$rate
+}
 
+#This function can then be used to characterise the Tissue Specificy, Gene Specificity Index and Rate of Gene Expression Evolution of any get set, 
+#including ecologically relevant genes and the set of all genes expressed in enterocytes 1
 
 
 
