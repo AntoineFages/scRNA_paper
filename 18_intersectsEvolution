@@ -43,6 +43,10 @@ ecological_predictors <- lapply(seq_along(ecological_predictors), function(i) ec
 #Input ecologically relevant genes
 intersects <- readRDS(aste0(path_to_output_of_integration,'enterocytes1_intersect.rds'))
 
+#enterocytes1 <- enterocytes1[,colSums(enterocytes1>0)==nrow(enterocytes1)]
+
+
+
 #Input of results of 2B-PLS
 PLS_results<-readRDS(paste0(path_to_output_of_integration,'2BPLS_results.rds'))
 
@@ -104,6 +108,22 @@ plotShifts <- function(phylo, rates,...){
   }
 
 ##### Plot correlations between tip values in traits and in gene sets correlating with these traits #####
+#first check whether loadings are positive or negative
+vector_multiply <- lapply(seq_along(enterocytes1_intersect), function(i) unlist(lapply(colnames(enterocytes1_intersect[[i]]), function(x) nonphyloPLS_results[[i]][[1]]$left.pls.vectors[x,])))
+vector_multiply <- lapply(vector_multiply, function(y) unlist(lapply(y, function(x) x/abs(x))))
+vector_pos <- lapply(vector_multiply, function(x) x[x>0])
+vector_neg <- lapply(vector_multiply, function(x) x[x<0])
+
+#only take ones with positive and negative correlations, respectively
+matrix_pos <- lapply(seq_along(enterocytes1_intersect), function(i) enterocytes1_intersect[[i]][,names(vector_pos[[i]])])
+matrix_neg <- lapply(seq_along(enterocytes1_intersect), function(i) enterocytes1_intersect[[i]][,names(vector_neg[[i]])])
+
+matrix_neg_complement <- lapply(matrix_neg, function(x) do.call('cbind',((lapply(seq_along(1:ncol(x)), 
+                                                               function(i) unlist(lapply (x[,i], 
+                                                                                   function(y) max(x[,i]) + min(x[,i]) - y)))))))
+for (i in 1:6) { colnames(matrix_neg_complement[[i]]) <- colnames(matrix_neg[[i]])}
+matrix_combined <- lapply(seq_along(matrix_pos), function(i) cbind(matrix_pos[[i]],matrix_neg_complement[[i]]))
+
 
 
 
