@@ -31,5 +31,6 @@ calc_helper <- function(object,genes){
   }else{return(NA)}
 }
 
+#Input Seurat integrated object
+my.se <- readRDS(paste0(path_to_output_of_integration,'integrated_dataset_final.rds'))
 
-my.se<-readRDS('~/scRNA/Seurat/gut/integration/species/gut_integration_3rd_1023_bis_alra.rds')
