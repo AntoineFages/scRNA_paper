@@ -11,6 +11,7 @@ library(caper)
 library(geiger)
 library(nlme)
 lbrary(geomorph)
+library(tidyr)
 
 ##### Read input files #####
 
@@ -197,5 +198,31 @@ function_information <- function(genes,name_of_predictor) {
 
 
 ##### Gene Ontology Enrichment Analysis #####
+geneName<-read.csv(file='XXX')
+go.names<-read.csv('XXX')
+gene.go<-read.csv('XXX')
+go.names<-go.names[go.names$GOID %in% gene.go$GOALL,]
+
+#Function to perform GO enrichment analysis of any set of genes compared to a universe
+go_function <- function(genes_DE,all_genes,celltype,pred){
+  aux <- limma::kegga(genes_DE, gene.pathway=gene.go,pathway.names=go.names, universe = unique(gene.go[gene.go$GID %in% all_genes,]$GID))
+  aux <- aux[aux$P.DE<0.05,]
+  aux <- aux[order(aux$P.DE),]
+  if (nrow(aux) > 0) {
+  aux$celltype <- celltype
+  aux$pred <- pred
+  aux$GID <- rownames(aux)
+  }
+  return(aux)
+}
+
+#Use the function to find GO terms enriched
+go_ent1 <- lapply(seq(1:6), function(i)  go_function(intersect_double[[i]],colnames(lograwCounts_enterocytes1),'enterocytes 1',predictors[[i]]))
+for(i in 1:length(go_ent1)) { go_ent1[[i]]$pred <- predictors[[i]]}
+go_ent1 <- lapply(go_ent1, function(x) x[x$N>5,])
+go_ent1_all <- do.call('rbind',go_ent1)
+
+#Save output for REVIGO visualisation
+write.table(go_ent1_all,'XXX')
 
 
