@@ -3,8 +3,6 @@
 
 library(Seurat)
 
-
-
 #Function to calculate percentage of cells expressing genes
 PrctCellExpringGene <- function(object, genes, group.by = "all"){
   if(group.by == "all"){
@@ -43,7 +41,15 @@ Idents(my.se) <- my.se$CellTypes
 my.se.subset <- lapply(levels(my.se$CellTypes), function(x) subset(my.se,idents=c(x)))
 
 #Keep genes expressed in at least 2 cells in each species
-
+genes_ToKeep <- readRDS('XXX') 
 
 #Calculate within each cell type the percentage of cells expressing each gene
+Prct <- lapply(my.se.subset, function(x) PrctCellExpringGene(x,genes_ToKeep,group.by='all')
+
+#Save percentage object
+saveRDS(Prct, paste0(path_to_output_of_integration,'genes_PrctExpr.rds'))
+
+
+
+
 
