@@ -18,6 +18,7 @@ lograwCounts<-readRDS(paste0(path_to_output_of_integration,'logcpm_byCellType.rd
 
 #List of cell populations associated with these
 
+CellTypes <- CellTypes[-c(13,18,20,21,23,24)]
 
 #Restrict to genes expressed in at least 10% of cells to avoid genes that are only sporadically expressed
 genes_Prct_CellTypes <- readRDS(paste0(path_to_output_of_integration,'genes_PrctExpr.rds'))
