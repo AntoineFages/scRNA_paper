@@ -159,3 +159,21 @@ intersects_double <- lapply(1:6, function(i) intersect(rownames(nonphyloordered_
 saveRDS(intersects_double,paste0(path_to_output_of_integration,'enterocytes1_intersect.rds'))
 
 
+##### Characterisation of ecologically relevant genes #####
+
+#1. fitContinuous
+
+
+#2. 
+#Tissue specificity
+Tau <- readRDS('~/zebrafish_tilapia_genes/Tau_crossTissues_log_all_0324.rds')
+
+#gsi (Gene Specificity Index)
+gsi <- readRDS('~/scRNA/Seurat/gut/integration/species/data_0324/gsi_gut_cpm.rds')
+
+
+
+
+
+
+
