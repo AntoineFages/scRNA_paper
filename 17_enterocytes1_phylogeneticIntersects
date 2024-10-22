@@ -16,10 +16,13 @@ library(nlme)
 #Matrices of log(cpm) within each cell population
 lograwCounts<-readRDS(paste0(path_to_output_of_integration,'logcpm_byCellType.rds'))
 
-#Restrict to genes expressed in at least 20% of cells
+#List of cell populations associated with these
 
-genes_20Prct <- lapply(genes_Prct_CellTypes, function(x) x[x$Cell_proportion > 0.2,])
-lograwCounts <- lapply(seq_along(lograwCounts), function(i) lograwCounts[[i]][,colnames(lograwCounts[[i]]) %in% genes_20Prct[[i]]$Markers])
+
+#Restrict to genes expressed in at least 10% of cells to avoid genes that are only sporadically expressed
+genes_Prct_CellTypes <- readRDS(paste0(path_to_output_of_integration,'genes_PrctExpr.rds'))
+genes_10Prct <- lapply(genes_Prct_CellTypes, function(x) x[x$Cell_proportion > 0.1,])
+lograwCounts <- lapply(seq_along(lograwCounts), function(i) lograwCounts[[i]][,colnames(lograwCounts[[i]]) %in% genes_10Prct[[i]]$Markers])
 
 ##Time-calibrated species tree
 tree <- readRDS(paste0(path_to_output_of_integration,'tree_byCellType.rds'))
@@ -31,6 +34,9 @@ ecological_predictors <- readRDS(paste0(path_to_output_of_integration,'ecologica
 lograwCounts <- lapply(seq_along(lograwCounts), function(i) lograwCounts[[i]][tree[[i]]$tip.label,])
 ecological_predictors <- lapply(lograwCounts, function(x) ecological_predictors[ecological_predictors$species %in% colnames(x),])
 ecological_predictors <- lapply(seq_along(ecological_predictors), function(i) ecological_predictors[[i]][tree[[i]]$tip.label,])
+
+
+##### Methods 1 & 2: univariate lm and pGLS #####
 
 #Functions to perform linear model and pGLS with Brownian Motion
 #Linear model
@@ -71,10 +77,37 @@ function_prepare <- function(data,i) {
 data_final <- lapply(seq_along(data_byGene), function(i) lapply(data_byGene[[i]], function(x) function_prepare(x,i)))
 
 #Run the lm and pGLS functions for each gene expressed in each cell population
+lm_data_genes <- lapply(seq_along(data_final), function(i) lapply(data_final[[i]]), function(x) unlist(lapply(2:7, function(j) function_lm(x,j))))
+gls_bm_data_genes <- lapply(seq_along(data_final), function(i) lapply(data_final[[i]]), function(x) unlist(lapply(2:7, function(j) function_gls_bm(x,tree[[i]],j))))
+
+#The p-values can then be extracted for each gene and ecological predictor, and used to select ecologically relevant genes,
+#with the threshold p-val(lm) < 0.05 and p-val(pGLS) < 0.05
+
+get_predictor <- function(list_data_genes,predictors,k,l) {
+    aux <- list()
+    df <- list()
+    for (i in 1:length(list_data_genes)) { #there is one list for each cell population
+        aux[[i]] <- list()
+        for (j in 1:length(list_data_genes[[i]])) { #there is one list of results for each gene within each cell population
+            aux[[i]][[j]] <- list_data_genes[[i]][[j]][[k]] #one result for each gene within each cell population and ecological predictor
+        }
+        aux[[i]] <- unlist(aux[[i]])
+        df[[i]] <- data.frame(pval=aux[[i]],celltype=rep(celltype[[i]],length(aux[[i]])),predictor=rep(predictors[[k]],length(aux[[i]])))
+        if (l !=4) {
+#     df[[i]]$pval <- (-log10(df[[i]]$pval))
+#     }
+#     colnames(df[[i]])[[1]] <- pval_methods[[l]]
+#     df[[i]]$geneID <- colnames(lograwCounts[[match(celltype[[i]],CellTypes)]])
+#     df[[i]] <- df[[i]][df[[i]]$geneID %in% genes_10Prct[[match(celltype[[i]],CellTypes)]]$Markers,]
+#   }
+#   return(df)
+# }
 
 
-lm_data_genes <- lapply(data_final, function(x) unlist(lapply(2:3, function(i) function_lm(x,i))))
-gls_bm_data_genes <- lapply(data_final, function(x) unlist(lapply(2:3, function(i) function_gls_bm(x,tree,i))))
+
+##### Methods 3 & 4: multivariate 2B-PLS and phylogenetic 2B-PLS #####
+
+
 
 
 
