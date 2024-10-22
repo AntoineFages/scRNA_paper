@@ -44,7 +44,7 @@ ecological_predictors <- lapply(seq_along(ecological_predictors), function(i) ec
 intersects <- readRDS(aste0(path_to_output_of_integration,'enterocytes1_intersect.rds'))
 
 #Input of results of 2B-PLS
-PLS_results<-readRDS('~/scRNA/Seurat/gut/integration/species/data_0324/PLS_nonphylo_0924.rds')
+PLS_results<-readRDS(paste0(path_to_output_of_integration,'2BPLS_results.rds'))
 
 #Input inferred trait evolution trees for each ecological predictor
 tree_d15N <- read.tree('XXX')
@@ -103,7 +103,7 @@ plotShifts <- function(phylo, rates,...){
     
   }
 
-
+##### Plot correlations between tip values in traits and in gene sets correlating with these traits #####
 
 
 
