@@ -20,12 +20,15 @@ data <- lapply(lograwCounts, function(x) t(x))
 data <- lapply(data, function(x) x[rownames(x)!='Astbur',])
 data <- lapply(data, function(x) x[rownames(x)!='Orenil',])
 
+##Time-calibrated species tree
+
+
 #Ecological predictors
 ecological_predictors <- readRDS(paste0(path_to_output_of_integration,'ecological_predictors.rds'))
 
-#Time-calibrated species tree
+#Make sure order of ecological predictors and data match order of tree tips
 
-
+ecological_predictors <- lapply(seq_along(ecological_predictors), function(i) ecological_predictors[[i]][tree[[i]]$tip.label,])
 
 #Functions to perform linear model and pGLS with Brownian Motion
 #Linear model
