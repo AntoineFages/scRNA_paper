@@ -2,24 +2,19 @@
 #Script 17. R script for identifying ecologically relevant genes in enterocytes 1
 
 library(Seurat)
-library(mvMORPH)
-library(ggplot)
-library(ggtree)
 library(dplyr)
 library(stats)
 library(ape)
 library(reshape2)
-library(viridis)
-library(cowplot)
-library(grid)
-library(gridExtra)
 library(geomorph)
-
+library(caper)
+library(geiger)
+library(nlme)
 
 ##### Read input files #####
 
 #Matrices of log(cpm) within each cell population
-lograwCounts<-readRDS('~/scRNA/Seurat/gut/integration/species/gut_lograwCounts_byCellType_0224.rds')
+lograwCounts<-readRDS(paste0(path_to_output_of_integration,'logcpm_byCellType.rds'))
 
 data <- lapply(lograwCounts, function(x) t(x))
 data <- lapply(data, function(x) x[rownames(x)!='Astbur',])
@@ -27,6 +22,10 @@ data <- lapply(data, function(x) x[rownames(x)!='Orenil',])
 
 #Ecological predictors
 ecological_predictors <- readRDS(paste0(path_to_output_of_integration,'ecological_predictors.rds'))
+
+#Time-calibrated species tree
+
+
 
 #Functions to perform linear model and pGLS with Brownian Motion
 #Linear model
