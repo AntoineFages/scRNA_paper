@@ -10,6 +10,7 @@ library(geomorph)
 library(caper)
 library(geiger)
 library(nlme)
+lbrary(geomorph)
 
 ##### Read input files #####
 
@@ -111,12 +112,50 @@ get_predictor <- function(list_data_genes,predictors,k,l) {
 #Summarise results
 lm_summary_tables <- lapply(seq_along(predictors), function(i) do.call(rbind,get_predictor(lm_data_genes,predictors,i,1)))
 bm_summary_tables <- lapply(seq_along(predictors), function(i) do.call(rbind,get_predictor(gls_bm_data_genes,predictors,i,2)))
-univariate_summary_tables <- lapply(seq_along(lm_summary_table), function(i) cbind(lm_summary_tables[[i]],bm_summary_tables[[i]]) #summary table for each cell population
+univariate_summary_tables <- lapply(seq_along(lm_summary_tables), function(i) cbind(lm_summary_tables[[i]],bm_summary_tables[[i]]) #summary tables for each predictor and cell population
 
 ##### Methods 3 & 4: multivariate 2B-PLS and phylogenetic 2B-PLS #####
 
+#Phylogenetic 2B-PLS function
+PLS_function <- function(Data,Si,Tree) {
+            PLS.d15N <- lapply(seq_along(Data), function(i) phylo.integration(as.matrix(Data[[i]]),as.matrix(Si[[i]][,a,drop=F]),Tree[[i]])) #a refers to the number of the column containing d15N values
+            PLS.d13C <- lapply(seq_along(Data), function(i) phylo.integration(as.matrix(Data[[i]]),as.matrix(Si[[i]][,b,drop=F]),Tree[[i]])) #b refers to the number of the column containing d13C values
+            PLS.ratio <- lapply(seq_along(Data), function(i) phylo.integration(as.matrix(Data[[i]]),as.matrix(Si[[i]][,c,drop=F]),Tree[[i]])) #c refers to the number of the column containing normalised gut length values
+            PLS.LPJ_PC2 <- lapply(seq_along(Data), function(i) phylo.integration(as.matrix(Data[[i]]),as.matrix(Si[[i]][,d,drop=F]),Tree[[i]])) #d refers to the number of the column containing LPJ PC2 values
+            PLS.oral_PC1 <- lapply(seq_along(Data), function(i) phylo.integration(as.matrix(Data[[i]]),as.matrix(Si[[i]][,e,drop=F]),Tree[[i]]))) #e refers to the number of the column containing oral PC1 values 
+            PLS.diet_ecology_vector <- lapply(seq_along(Data), function(i) phylo.integration(as.matrix(Data[[i]]),as.matrix(Si[[i]][,f,drop=F]),Tree[[i]])) #f refers to the number of the column containing diet ecology vector values
+            return(list(PLS.d15N,PLS.d13C,PLS.ratio,PLS.LPJ_PC2,PLS.oral_PC1,PLS.diet_ecology_vector))
+}
 
+#2B-PLS function
+nonphyloPLS_function <- function(Data,Si) {
+            PLS.d15N <- lapply(seq_along(Data), function(i) two.b.pls(as.matrix(Data[[i]]),as.matrix(Si[[i]][,a,drop=F]))) #a refers to the number of the column containing d15N values
+            PLS.d13C <- lapply(seq_along(Data), function(i) two.b.pls(as.matrix(Data[[i]]),as.matrix(Si[[i]][,b,drop=F]))) #b refers to the number of the column containing d13C values
+            PLS.ratio <- lapply(seq_along(Data), function(i) two.b.pls(as.matrix(Data[[i]]),as.matrix(Si[[i]][,c,drop=F]))) #c refers to the number of the column containing normalised gut length values
+            PLS.LPJ_PC2 <- lapply(seq_along(Data), function(i) two.b.pls(as.matrix(Data[[i]]),as.matrix(Si[[i]][,d,drop=F]))) #d refers to the number of the column containing LPJ PC2 values
+            PLS.oral_PC1 <- lapply(seq_along(Data), function(i) two.b.pls(as.matrix(Data[[i]]),as.matrix(Si[[i]][,e,drop=F]))) #e refers to the number of the column containing oral PC1 values 
+            PLS.diet_ecology_vector <- lapply(seq_along(Data), function(i) two.b.pls(as.matrix(Data[[i]]),as.matrix(Si[[i]][,f,drop=F]))) #f refers to the number of the column containing diet ecology vector values
+            return(list(PLS.d15N,PLS.d13C,PLS.ratio,PLS.LPJ_PC2,PLS.oral_PC1,PLS.diet_ecology_vector))
+}
 
+#Run these two functions and obtain gene loadings
+PLS_results <- PLS_function(lograwCounts,ecological_predictors,tree)
+nonphyloPLS_results <- nonphyloPLS_function(lograwCounts,ecological_predictors)
 
+order_loading_function <- function(list_PLS) {
+  lapply(list_PLS, function(x) lapply(x, function(y) y$left.pls.vectors[order(-abs(y$left.pls.vectors[,1])),,drop=FALSE]))
+  }
+
+ordered_loadings <- order_loading_function(PLS_results)
+nonphyloordered_loadings <- order_loading_function(nonphyloPLS_results)
+
+#Combine univariate and multivariate approaches
+univariate_significant <- lapply(univariate_summary_tables, function(x) x[x$logpval_bm > 1.3 & x$logpval_lm > 1.3,]
+univariate_significant_enterocytes1 <- lapply(univariate_significant, function(x) x[x$celltype='enterocytes 1',])
+intersects <- lapply(1:6, function(i) intersect(rownames(ordered_loadings[[i]][[1]])[1:nrow(univariate_significant_enterocytes1[[i]])], univariate_significant_enterocytes1[[i]]$geneID))
+intersects_double <- lapply(1:6, function(i) intersect(rownames(nonphyloordered_loadings[[i]][[1]])[1:nrow(univariate_significant_enterocytes1[[i]])], intersects[[i]]))
+
+#Save these gene sets representing for each ecological predictor the intersection of the four approaches
+saveRDS(intersects_double,paste0(path_to_output_of_integration,'enterocytes1_intersect.rds'))
 
 
