@@ -41,15 +41,16 @@ ecological_predictors <- lapply(lograwCounts, function(x) ecological_predictors[
 ecological_predictors <- lapply(seq_along(ecological_predictors), function(i) ecological_predictors[[i]][tree[[i]]$tip.label,])
 
 #Input ecologically relevant genes
+predictors <- c('d15N','d13C','ratio','LPJ_PC2','oral_PC1','diet_ecology_vector')
 intersects <- readRDS(paste0(path_to_output_of_integration,'enterocytes1_intersect.rds'))
 
 #Create matrix of cpm for enterocytes 1 that do not contain 0
 enterocytes1 <- lograwCounts[[1]]
 enterocytes1 <- enterocytes1[,colSums(enterocytes1>0)==nrow(enterocytes1)]
-enterocytes1_intersect <- lapply(seq_along(predictors), function(i)  enterocytes1[,colnames(enterocytes1) %in% intersects[[i]][[1]]])
+enterocytes1_intersect <- lapply(seq_along(predictors), function(i)  enterocytes1[,colnames(enterocytes1) %in% intersects[[i]]])
 
 #Input of results of 2B-PLS
-PLS_results<-readRDS(paste0(path_to_output_of_integration,'2BPLS_results.rds'))
+PLS_results <- readRDS(paste0(path_to_output_of_integration,'2BPLS_results.rds'))
 
 #Input inferred trait evolution trees for each ecological predictor
 tree_d15N <- read.tree('XXX')
@@ -111,7 +112,7 @@ plotShifts <- function(phylo, rates,...){
 ##### Plot correlations between tip values in traits and in gene sets correlating with these traits #####
 
 #First check whether loadings are positive or negative: are genes correlating positively or negatively with traits
-vector_multiply <- lapply(seq_along(enterocytes1_intersect), function(i) unlist(lapply(colnames(enterocytes1_intersect[[i]]), function(x) nonphyloPLS_results[[i]][[1]]$left.pls.vectors[x,])))
+vector_multiply <- lapply(seq_along(enterocytes1_intersect), function(i) unlist(lapply(colnames(enterocytes1_intersect[[i]]), function(x) PLS_results[[i]]$left.pls.vectors[x,])))
 vector_multiply <- lapply(vector_multiply, function(y) unlist(lapply(y, function(x) x/abs(x))))
 vector_pos <- lapply(vector_multiply, function(x) x[x>0])
 vector_neg <- lapply(vector_multiply, function(x) x[x<0])
