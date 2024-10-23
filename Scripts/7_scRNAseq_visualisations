@@ -18,8 +18,8 @@ library(purrr)
 
 ##### Read input files #####
 #Custom PCA script and script to plot relative cell abundances
-source('PCA_script.R') 
-source('plotCellTypeProps.R')
+source('script_PCACustom') 
+source('script_plotCellTypeProps')
 
 #Read Seurat object
 my.se <- readRDS(paste0(path_to_output_of_integration,'integrated_dataset_final.rds'))
