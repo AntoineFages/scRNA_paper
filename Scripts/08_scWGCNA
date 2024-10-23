@@ -1,5 +1,5 @@
 #!/usr/bin/env Rscript
-#Script 10. R script for running scWGCNA
+#Script 8. R script for running scWGCNA
 
 library(Seurat)
 library(WGCNA)
