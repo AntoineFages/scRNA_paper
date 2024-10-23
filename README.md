@@ -9,11 +9,11 @@
 Scripts 01, 02, 03, 04
 
 
-### Clustering, cell type labeling and visualisation of integrated single-cell data
+### Clustering, cell type labeling and visualisation of integrated single-cell RNAseq data
 Scripts 05, 06, 07, 08
 
 
-### bulk RNA deconvolution for characterisation anterior-posterior identity of epithelial cell populations  
+### Mapping of bulk RNAseq data and deconvolution for characterisation anterior-posterior identity of epithelial cell populations  
 Scripts 09, 10
 
 
