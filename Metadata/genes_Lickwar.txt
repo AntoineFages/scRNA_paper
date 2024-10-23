@@ -1,0 +1,45 @@
+geneID	gff_annotation	gff_annotation2
+100705718	ada	adenosine deaminasei
+100712273	mdh2	malate dehydrogenase 2
+100700053	rbp2	retinol binding protein 2
+100694503	LOC100694503	fructose-bisphosphate aldolase B
+100699401	tm4sf5	transmembrane 4 L six family member 5
+100692439	bpnt1	3'(2')%2C 5'-bisphosphate nucleotidase 1
+100705182	ephx2	epoxide hydrolase 2
+100710058	p4hb	prolyl 4-hydroxylase subunit beta
+100712286	LOC100712286	catalase
+109202929	LOC109202929	catalase
+100698150	asah2	N-acylsphingosine amidohydrolase 2
+100697360	LOC100697360	cytochrome b5
+100711056	fabp2	fatty acid binding protein 2
+100702051	enpep	glutamyl aminopeptidase
+100709982	acsl5	acyl-CoA synthetase long chain family member 5
+100691752	LOC100691752	gastrotropin
+100704253	LOC100704253	transmembrane and immunoglobulin domain-containing protein 1
+100707260	ctsc	cathepsin C
+100697684	lgmn	legumain
+100708870	ctsz	cathepsin Z
+100708717	hexb	hexosaminidase subunit beta
+100699744	scpep1	serine carboxypeptidase 1
+100708413	ctsh	cathepsin H
+100707415	aplp2	amyloid beta precursor like protein 2
+100704004	smim14	small integral membrane protein 14
+100711543	tpm1	tropomyosin 1
+100694369	sh3bgrl2	SH3 domain binding glutamate rich protein like 2
+100709062	abca12	ATP binding cassette subfamily A member 12
+100694834	laptm4b	lysosomal protein transmembrane 4 beta
+100692591	far1	fatty acyl-CoA reductase 1
+100705567	LOC100705567	dihydropyrimidinase-related protein 2
+100704353	LOC100704353	dihydropyrimidinase-related protein 2
+100711297	LOC100711297	dihydropyrimidinase-related protein 2
+100694159	LOC100694159	hexokinase-2
+100697262	prkci	protein kinase C iota
+100702664	adam9	ADAM metallopeptidase domain 9
+100697098	tmbim4	transmembrane BAX inhibitor motif containing 4
+100693398	plekha3	pleckstrin homology domain containing A3
+100710846	slc39a9	solute carrier family 39 member 9
+100706149	chmp3	charged multivesicular body protein 3
+100694033	map2k1	mitogen-activated protein kinase kinase 1
+100702015	lrrc42	leucine rich repeat containing 42
+100691321	sbds	SBDS%2C ribosome maturation factor
+100708473	LOC100708473	aquaporin-3
