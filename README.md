@@ -8,3 +8,7 @@
 
 Scripts 01, 02, 03, 04
 
+
+### Clustering, cell type labeling and visualisation of integrated single-cell data
+
+Scripts 05, 06, 07
