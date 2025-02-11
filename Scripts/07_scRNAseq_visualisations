@@ -131,7 +131,7 @@ function_pseudobulk_normalisation <- function(my.se,minNcells) {
   Idents(my.se)<-my.se$CellTypes
 
   #Extract raw counts and metadata to create SingleCellExperiment object
-  counts_all< - GetAssayData(object = my.se, assay="RNA",slot = "data")
+  counts_all<- GetAssayData(object = my.se, assay="RNA",slot = "data")
 
   #Set up metadata as desired for aggregation and DE analysis
   meta.data_all<-my.se@meta.data
