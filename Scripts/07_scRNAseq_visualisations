@@ -252,6 +252,7 @@ function_cpm_pseudobulk <- function(my.se,minNcells) {
   #Keep genes expressed in at least 2 cells in all species in matrix calculated by cell population
   pb_all_byCellType <- pb_all[rownames(pb_all_byCellType) %in% genes_ToKeep,]
 
+  metadata <- meta.data_all
   metadata$combi <- paste0(metadata$CellTypes,"_",metadata$orig.ident.2)
 
   #Subset samples if fewer than minNcells
@@ -266,7 +267,7 @@ function_cpm_pseudobulk <- function(my.se,minNcells) {
     }
   }
 
-  return(round(pb_all),round(pb_all_byCellType))
+  return(list(round(pb_all),round(pb_all_byCellType)))
 }
 
 cpm <- as.data.frame(function_cpm_pseudobulk(my.se,20)[[1]])
