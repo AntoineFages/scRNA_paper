@@ -147,8 +147,9 @@ function_pseudobulk_normalisation <- function(my.se,minNcells) {
 
   #Keep genes expressed in at least 2 cells in all species
   genes_ToKeep <- readRDS('XXX') #list of genes expressed in at least 2 cells in all species
-  pb_all <- pb_all[rownames(pb_all) %in% genes_ToKeep,]
   pb_all <- as.matrix(t(pb_all))
+  pb_all <- pb_all[rownames(pb_all) %in% genes_ToKeep,]
+
 
   metadata$combi <- paste0(metadata$CellTypes,"_",metadata$orig.ident.2)
 
