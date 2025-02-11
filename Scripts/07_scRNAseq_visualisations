@@ -242,8 +242,8 @@ function_cpm_pseudobulk <- function(my.se,minNcells) {
 
   #Keep genes expressed in at least 2 cells in all species
   genes_ToKeep <- readRDS('XXX') #list of genes expressed in at least 2 cells in all species
-  pb_all <- pb_all[rownames(pb_all) %in% genes_ToKeep,]
   pb_all <- as.matrix(t(pb_all))
+  pb_all <- pb_all[rownames(pb_all) %in% genes_ToKeep,]
   pb_all_byCellType <- as.matrix(t(pb_all_byCellType))
 
   #Calculate Counts Per Million (cpm)
@@ -251,7 +251,7 @@ function_cpm_pseudobulk <- function(my.se,minNcells) {
   pb_all_byCellType <- calculateCPM(pb_all_byCellType,size.factors=NULL)
 
   #Keep genes expressed in at least 2 cells in all species in matrix calculated by cell population
-  pb_all_byCellType <- pb_all[rownames(pb_all_byCellType) %in% genes_ToKeep,]
+  pb_all_byCellType <- pb_all_byCellType[rownames(pb_all_byCellType) %in% genes_ToKeep,]
 
   metadata <- meta.data_all
   metadata$combi <- paste0(metadata$CellTypes,"_",metadata$orig.ident.2)
