@@ -159,7 +159,7 @@ function_pseudobulk_normalisation <- function(my.se,minNcells) {
       if (plyr::count(aux$orig.ident.2)$freq[[j]] < minNcells){
         aux2 <- paste0(CellTypes[[k]],"_",plyr::count(aux$orig.ident.2)$x[[j]])
         pb_all <- pb_all[,which(colnames(pb_all)!=aux2)]
-        metadata <- metadata2[metadata$combi %in% colnames(pb_all),]
+        metadata <- metadata[metadata$combi %in% colnames(pb_all),]
       }
     }
   }
