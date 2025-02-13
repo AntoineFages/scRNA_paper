@@ -44,7 +44,7 @@ my.se.subset <- lapply(levels(my.se$CellTypes), function(x) subset(my.se,idents=
 genes_ToKeep <- readRDS('XXX') 
 
 #Calculate within each cell type the percentage of cells expressing each gene
-genes_Prct_CellTypes <- lapply(my.se.subset, function(x) PrctCellExpringGene(x,genes_ToKeep,group.by='all')
+genes_Prct_CellTypes <- lapply(my.se.subset, function(x) PrctCellExpringGene(x,genes_ToKeep,group.by='all'))
 
 #Save percentage object
 saveRDS(genes_Prct_CellTypes, paste0(path_to_output_of_integration,'genes_PrctExpr.rds'))
