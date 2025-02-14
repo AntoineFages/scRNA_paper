@@ -62,7 +62,7 @@ function_gls_bm <- function(Data,Tree,g) {
     }
 }
 
-data_byGene <- lapply(lograwCounts, function(x) (seq_along(colnames(x)), as.data.frame(function(i) x[,i,drop=F])))
+data_byGene <- lapply(lograwCounts, function(x) lapply(seq_along(colnames(x)), as.data.frame(function(i) x[,i,drop=F])))
 
 #Function to prepare data for lm and pGLS
 function_prepare <- function(data,i) {
