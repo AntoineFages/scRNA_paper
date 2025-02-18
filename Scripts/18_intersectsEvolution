@@ -157,6 +157,12 @@ function_plot_combined_rates <- function(i) {
   plotShifts(tree_enterocytes1,rates_combined)
   mtext(paste0(predictors[[i]]," vs Gene Expression rates"), side = 3, line = - 2, outer = TRUE)
 }
+function_plot_combined_rates(1)
+function_plot_combined_rates(2)
+function_plot_combined_rates(3)
+function_plot_combined_rates(4)
+function_plot_combined_rates(5)
+function_plot_combined_rates(6)
 
 
 
