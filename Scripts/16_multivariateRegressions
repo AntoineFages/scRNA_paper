@@ -216,7 +216,7 @@ df_Pillai_modules$geneset <- 'modules'
 
 #Combine in one dataframe per gene set
 levels_predictors <- c('d15N','gut_ratio','LPJ_PC2','diet_ecology_vector','d13C','oral_PC1')
-function_combine <- function(df_Pillai, df_pval,) {
+function_combine <- function(df_Pillai, df_pval) {
     df <- cbind(df_Pillai,df_pval)
     df$celltype <- factor(df$celltype)
     df$logpval <- -log10(df$pval)
