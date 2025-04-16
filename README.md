@@ -2,7 +2,7 @@
 
 **Metadata** contains important data and information for reproducing results of the manuscript. 
 
-**Scripts** contains scripts for reproducing results of the manuscript. All R scripts have been executed in R v4.1.2.
+**Scripts** contains scripts for reproducing results of the manuscript (all R scripts have been executed in R v4.1.2):
 
 ### Mapping, QC and integration of single-cell data
 Scripts 01, 02, 03, 04
