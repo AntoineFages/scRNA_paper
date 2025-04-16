@@ -1,9 +1,21 @@
-# Data and scripts for "Adaptive cellular evolution in the intestinal tracts of hyperdiverse African cichlid fishes" (Fages et al.)
+# Data and scripts for "Adaptive cellular evolution in the intestines of hyperdiverse cichlid fishes" (Fages et al.)
 
 **Metadata** contains important data and information for reproducing results of the manuscript. 
 
 **Scripts** contains scripts for reproducing results of the manuscript:
 
+**Necessary programs, databases and libraries to run scripts:**
+Cell Ranger v5.0 (10X Genomics), 
+Trimmomatic (v0.39), 
+STAR (v2.7.3), 
+HTSeq (v2.0), 
+REVIGO web server (v1.8.1), 
+EVEE-tools, 
+STRING v11 database, 
+BayesTraits (v3.0.2),
+Python3 (v3.12) and oggmap Python package, 
+R v4.1.2, 
+R packages: SoupX (v1.6.2), ddqcR (v0.1), Seurat (v4.1.0), SciBet (v1.0), MetaNeighbor (v1.14), BayesPrism (v2.0), limma (v3.50.3), Go.db (v3.14), DESeq2 (v1.14), Augur (v1.0.3), caper (v1.0.3), speckle (v0.0.3), mvMORPH (v1.1.8), geiger (v2.0.7), coda (v.0.19.3), phytools (v2.1.1), ape (v5.7.1), ggplot2 (v3.5.1), scWGCNA, pheatmap (v1.0.12), dplyr (v1.1.4), reshape2 (v1.4.4), viridis (v0.6.5)
 
 ### Mapping, QC and integration of single-cell data
 Scripts 01, 02, 03, 04
