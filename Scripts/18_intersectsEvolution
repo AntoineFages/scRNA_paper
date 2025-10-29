@@ -137,11 +137,13 @@ matrix_combined_rowMeans <- lapply(matrix_combined, function(x) rowMeans(x))
 combined_corr <- as.data.frame(do.call(cbind, matrix_combined_rowMeans))
 combined_corr <- cbind(combined_corr,ecological_predictors[[1]])
 
-#Estimate ancestral states and rates of evolution
+#Estimate ancestral states and rates of evolution with an OU model
 function_rate_contMap <- function(Matrix,i) {
   aux <- unlist(list(as.numeric(as.matrix(Matrix)[,i])))
   names(aux) <- rownames(Matrix)
-  obj_aux <- contMap(tree_predictors[[i]],aux,plot=FALSE)
+  fit_mv <- mvOU(tree_predictors[[1]], data = aux,model = "OU1",error = FALSE)
+  anc <- estim(tree_predictors[[1]], aux, fit_mv, asr=T)
+  obj_aux <- contMap(tree_predictors[[1]], test, method='user', anc.states=anc$estimates[,1], plot=FALSE)
   rates <- unlist(lapply(obj_aux$tree$maps, function(x) abs(max(as.numeric(names(x)))-min(as.numeric(names(x))))))
   return(rates)
 }
@@ -157,6 +159,7 @@ function_plot_combined_rates <- function(i) {
   plotShifts(tree_enterocytes1,rates_combined)
   mtext(paste0(predictors[[i]]," vs Gene Expression rates"), side = 3, line = - 2, outer = TRUE)
 }
+
 function_plot_combined_rates(1)
 function_plot_combined_rates(2)
 function_plot_combined_rates(3)
