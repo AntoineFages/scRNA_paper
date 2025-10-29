@@ -171,13 +171,19 @@ for (i in 1:length(data_fitContinuous)){
     data_fitContinuous[[i]] <- data_genes[[i]][tree[[1]]$tip.label,,drop=F]
  }
 
-#Run fitContinuous to model a Brownian Motion
-fit_BM <- lapply(data_fitContinuous, function(x) fitContinuous(dat=x,phy=tree[[1]],SE=0,model='BM',ncores=10))
+#Get fitContinuous output modeled by Brownian Motion and Ornstein Uhlenbeck
+fit_BM <- readRDS('fitContinuous_BM.rds') #Path to output of fitContinuous with BM
+fit_OU <- readRDS('fitContinuous_BM.rds') #Path to output of fitContinuous with OU
 
-#Obtain rate of evolution
-rates <- unlist(lapply(fit_BM, function(x) x$opt$sigsq))
+#Obtain rate of evolution - BM
+rates_BM <- unlist(lapply(fit_BM, function(x) x$opt$sigsq))
 gene_names <- lapply(genes_10Prct[1]], function(x) (x$Markers))
-df_rates <- data.frame(geneID=gene_names, rate=rates)
+df_rates_BM <- data.frame(geneID=gene_names, rate=rates_BM)
+
+
+#Obtain rate of evolution - OU
+rates_OU <- unlist(lapply(fit_OU, function(x) x$opt$sigsq/(2*(x$opt$alpha))))
+df_rates_OU <- data.frame(geneID=gene_names, rate=rates_OU)
 
 #Input Tissue specificity
 Tau <- readRDS(paste0(path_to_output_of_transcriptome_characterisation,'Tau.rds'))
@@ -189,8 +195,9 @@ gsi <- readRDS(paste0(path_to_output_of_integration,'gsi_byCellType.rds'))
 function_information <- function(genes,name_of_predictor) {
             Tau_aux <- Tau[match(genes,Tau$geneID),]$TissueSpe
             gsi_aux <- gsi[match(genes,rownames(gsi)),]
-            rate_aux <- df_rates[match(genes,df_rates$geneID),]$rate
-            df_aux <- data.frame(Tau=Tau_aux,gsi=gsi_aux,rate=rate_aux,type=rep(name_of_predictor,length(Tau_aux)))
+            rate_aux_BM <- df_rates_BM[match(genes,df_rates_BM$geneID),]$rate
+            rate_aux_OU <- df_rates_OU[match(genes,df_rates_OU$geneID),]$rate
+            df_aux <- data.frame(Tau=Tau_aux,gsi=gsi_aux,rate_BM=rate_aux_BM,rate_OU=rate_aux_OU,type=rep(name_of_predictor,length(Tau_aux)))
             return(df_aux)
 }
 
