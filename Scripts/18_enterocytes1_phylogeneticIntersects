@@ -1,5 +1,5 @@
 #!/usr/bin/env Rscript
-#Script 17. R script for identifying ecologically relevant genes in enterocytes 1
+#Script 18. R script for identifying ecologically relevant genes in enterocytes 1
 
 library(Seurat)
 library(dplyr)
