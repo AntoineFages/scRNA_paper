@@ -1,1 +1,2 @@
-dd
+#!/usr/bin/env Rscript
+#Script 17. R script for modelling gene expression evolution
