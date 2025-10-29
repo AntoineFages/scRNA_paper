@@ -5,6 +5,8 @@ library(Seurat)
 library(scibet)
 library(dplyr)
 library(tibble)
+library(phytools)
+library(ggplot2)
 
 ##### input data #####
 path_to_output_of_integration <- 'XXX' #path to put the output of integration
@@ -77,8 +79,111 @@ dNdS <- function_average_within_cell(my.se, "CellTypes", dNdS_table, "dNdS", "ge
 saveRDS(dNdS,paste0(path_to_output_of_transcriptome_characterisation,'dNdS.rds')
 
 
+##### statistical support #####
 
+function_t_test_CellType <- function(metric,title) {
+  metric<-lapply(seq_along(metric), function(i) {
+    metric[[i]]$species <- species[[i]]
+    return(metric[[i]])
+  })
+  
+  metric_all <- do.call('rbind',metric)
+  metric_all$weightAve <- as.numeric(metric_all$weightAve)
 
+  metric_all_all_summary <- metric_all_all %>% group_by(celltype,species) %>%summarise(mean=mean(weightAve))
+  Tau_NoLog_all_summary$celltype <- factor(Tau_NoLog_all_summary$celltype,levels=unique(cat_CellTypes))
+  print(head(Tau_NoLog_all_summary))
+  
+  library(phytools)
+  library(ape)
+  tree_raw<-read.tree("/scicore/home/salzburg/fages0000/scRNA/Seurat/scripts/integration/b1.tre")
+  exclude <- tree_raw$tip.label[! tree_raw$tip.label %in% species]
+  tree <- ape::drop.tip(phy=tree_raw, tip=exclude, root.edge = F, rooted = is.rooted(tree_raw))
+  
+  create_vector <- function(ct) {
+    aux <- as.data.frame(na.omit(Tau_NoLog_all_summary[Tau_NoLog_all_summary$celltype==ct,]))
+    exclude_aux <- tree$tip.label[!(tree$tip.label %in% aux$species)]
+    tree_aux <- ape::drop.tip(phy=tree, tip=exclude_aux, root.edge = F, rooted = is.rooted(tree))
+    aux <- aux[match(tree_aux$tip.label,aux$species),]
+    rownames(aux) <- aux$species
+    return(aux)
+  }
+  
+  celltypes <- levels(unique(Tau_NoLog_all_summary$celltype))[1:24]
+  print(celltypes)
+  
+  phylopaired <- lapply(celltypes, function(x) unlist(lapply(celltypes, function(y) {
+    if (x != y) {
+      X <- create_vector(x)
+      Y <- create_vector(y)
+      species_X <- unique(X$species)
+      species_Y <- unique(Y$species)
+      species_intersect <- intersect(species_X,species_Y)
+      exclude_X_Y <- tree$tip.label[!(tree$tip.label %in% species_intersect)]
+      tree_X_Y <- ape::drop.tip(phy=tree, tip=exclude_X_Y, root.edge = F, rooted = is.rooted(tree))
+      return(phyl.pairedttest(tree_X_Y,X[,3,drop=F],Y[,3,drop=F])$P.dbar)
+    } else {return(1)}})))
+  
+  print(phylopaired)
+  matrix_phylopaired <- do.call('rbind',phylopaired)
+  
+  colnames(matrix_phylopaired) <- celltypes
+  rownames(matrix_phylopaired) <- celltypes
+  
+  means <- tapply(Tau_NoLog_all_summary$mean, Tau_NoLog_all_summary$celltype, mean)
+  
+  # Expand to pairwise differences
+  diff_mat <- outer(means, means, "-")  # matrix[i,j] = mean(i) - mean(j)
+  print(diff_mat)
+  
+  library(pheatmap)
+  #pheatmap(-log10(matrix_phylopaired),cluster_rows = T,cluster_cols = T)
+  
+  #Keep uper triangle
+  matrix_phylopaired[lower.tri(matrix_phylopaired, diag = TRUE)] <- NA
+  diff_mat[lower.tri(diff_mat, diag = TRUE)] <- NA
+  
+  
+  # Melt matrix
+  library(reshape2)
+  p_df <- melt(matrix_phylopaired, na.rm = TRUE)
+  colnames(p_df) <- c("CellType1", "CellType2", "p_value")
+  
+  d_df <- melt(diff_mat)
+  colnames(d_df) <- c("CellType1", "CellType2", "diff")
+  
+  # Merge
+  plot_df <- merge(p_df, d_df, by = c("CellType1", "CellType2"))
+  
+  # Add signed log p-value
+  plot_df$signed_log_p <- sign(plot_df$diff) * -log10(plot_df$p_value)
+  
+  plot_df$log_p <- -log10(plot_df$p_value)
+  plot_df$signif <- cut(plot_df$p_value,
+                        breaks = c(-Inf, 0.001, 0.01, 0.05, Inf),
+                        labels = c("***", "**", "*", ""))
+  
+  
+  ggplot(plot_df, aes(x = CellType1, y = CellType2, fill = signed_log_p)) +
+    geom_tile(color = "white") +
+    scale_fill_gradient2(
+      low = "blue", mid = "white", high = "red",
+      midpoint = 0, name = "Signed -log10(p)") +
+    geom_text(aes(label = signif), size = 4, color = "black")  +
+    theme_classic() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    labs(title = "Pairwise significance Heatmap",
+         x = "Cell population 1", y = "Cell population 2") + coord_flip() + 
+    scale_x_discrete(limits=rev) + ggtitle(title)
+  
+  # ggplot(p_df, aes(x = CellGroup1, y = CellGroup2, fill = signed_log_p)) +
+  #   geom_tile(color = "white") +
+  #   scale_fill_gradient(low = "white", high = "red", name = "-log10(p)") +
+  #   geom_text(aes(label = signif), size = 4, color = "black") +
+  #   theme_minimal() +
+  #   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  #   labs(title = "Pairwise Significance Heatmap", x = "Cell Group", y = "Cell Group")
+}
 
 
 
