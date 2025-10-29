@@ -5,7 +5,7 @@ library(scuttle)
 library(dplyr)
 library(reshape2)
 
-##### Prepare foregut bulk RNAseq - parts 1 and 2 #####
+##### Foregut bulk RNAseq #####
 Matrix <- as.matrix(read.csv('Matrix_bulkRNAseq.txt',sep="\t",row.names="gene")) #Matrix of counts from bulk RNAseq
 Matrix <- head(Matrix,-5)
 Coldata <- read.table('coldata_bulkRNAseq.txt',sep='\t') #Coldata table from bulk RNAseq
@@ -14,6 +14,7 @@ Coldata <- read.table('coldata_bulkRNAseq.txt',sep='\t') #Coldata table from bul
 Matrix_Foregut <- Matrix[,rownames(Coldata[Coldata$part %in% c(1,2),])]
 Matrix_Foregut <- Matrix_Foregut[rowSums(Matrix_Foregut>5)>=2,]
 
+#Transform data into log2(cpm+1)
 cpm_Foregut <- calculateCPM(Matrix_Foregut)
 cpm_Foregut <- log2(cpm_Foregut+1)
 Coldata <- Coldata[Coldata$part %in% c(1,2),]
@@ -36,6 +37,7 @@ intragroup_function <- function(count_matrix,coldata) {
   return(intragroup_variation)
 }
 
+#Run function for calculating intragroup (intraspecific) variation
 intragroup_variation <- intragroup_function(cpm_Foregut,Coldata)
 intragroup_variation_per_gene <- intragroup_variation %>% group_by(gene) %>% summarise(mean_SD = mean(SD, na.rm = TRUE),
                                                                                mean_mean = mean(mean, na.rm = TRUE),
@@ -51,6 +53,37 @@ model_power <- nls(RSE ~ a * mean_mean^b, data = df, start = list(a = 1, b = -0.
 model_exp <- nls(RSE ~ a * exp(-b * mean_mean), data = df, start = list(a = 1, b = 0.1))
 model_hyper <- nls(RSE ~ a / (mean_mean + c), data = df, start = list(a = 1, c = 1))
 AIC(model_power, model_exp, model_hyper)
+
+#Extract a and c parameters from fit of hyperbolic function
+
+##### scRNAseq pseudobulk from enterocytes 1 #####
+cpm_Permic<-as.data.frame(readRDS('XXX/cpm_Permic.rds')) #enterocytes 1 cpm values for the 2 biological duplicates of Permic
+cpm_Cphfro<-as.data.frame(readRDS('XXX/cpm_Cphfro.rds')) #enterocytes 1 cpm values for the 2 biological duplicates of Cphfro
+cpm_Permic <- log2(cpm_Permic+1)
+cpm_Cphfro <- log2(cpm_Cphfro+1)
+
+#Combine the two species
+cpm_Permic <- cpm_Permic[rownames(cpm_Permic) %in% rownames(cpm_Cphfro),]
+cpm_Cphfro <- cpm_Cphfro[rownames(cpm_Cphfro) %in% rownames(cpm_Permic),]
+cpm_Cphfro <- cpm_Cphfro[rownames(cpm_Permic),]
+cpm_scRNA <- cbind(cpm_Permic,cpm_Cphfro)
+coldata_scRNA <- data.frame(individual=c(1,2,3,4),species=c('Permic','Permic','Cphfro','Cphfro'),specimen=colnames(cpm_scRNA))
+
+#Run function for calculating intragroup (intraspecific) variation
+intragroup_scRNA <- intragroup_function(cpm_scRNA,coldata_scRNA)
+intragroup_scRNA_per_gene <- intragroup_scRNA %>% group_by(gene) %>% summarise(mean_SD = mean(SD, na.rm = TRUE),
+                                                                               mean_mean = mean(mean, na.rm = TRUE),
+                                                                               .groups='drop')
+
+intragroup_scRNA_per_gene$RSD <- intragroup_scRNA_per_gene$mean_SD/intragroup_scRNA_per_gene$mean_mean
+intragroup_scRNA_per_gene$RSE <- intragroup_scRNA_per_gene$RSD/sqrt(2)
+intragroup_scRNA_per_gene$tissue <- 'scRNA'
+
+#Extract a and c parameters from fit of hyperbolic function
+
+##### Model gene expression evolution #####
+
+
 
 
 
