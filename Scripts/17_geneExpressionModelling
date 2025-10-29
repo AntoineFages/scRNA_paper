@@ -4,6 +4,9 @@
 library(scuttle)
 library(dplyr)
 library(reshape2)
+library(phytools)
+library(ape)
+library(ggplot2)
 
 ##### Foregut bulk RNAseq #####
 Matrix <- as.matrix(read.csv('Matrix_bulkRNAseq.txt',sep="\t",row.names="gene")) #Matrix of counts from bulk RNAseq
@@ -82,8 +85,64 @@ intragroup_scRNA_per_gene$tissue <- 'scRNA'
 #Extract a and c parameters from fit of hyperbolic function
 
 ##### Model gene expression evolution #####
+#Matrices of log(cpm) within each cell population
+lograwCounts<-readRDS(paste0(path_to_output_of_integration,'logcpm_byCellType.rds'))
+enterocytes1 <- lograwCounts[[1]]
 
+#Restrict to genes expressed in at least 10% of cells to avoid genes that are only sporadically expressed
+genes_Prct_CellTypes <- readRDS(paste0(path_to_output_of_integration,'genes_PrctExpr.rds'))
+genes_10Prct <- lapply(genes_Prct_CellTypes, function(x) x[x$Cell_proportion > 0.1,])
+enterocytes1 <- enterocytes1[,colnames(enterocytes1) %in% genes_10Prct[[1]]$Markers]
 
+##Time-calibrated species tree
+tree <- readRDS(paste0(path_to_output_of_integration,'tree_byCellType.rds'))
+tree_enterocytes1 <- tree[[1]]
 
+#Make sure order of data matches order of tree tips
+enterocytes1 <- enterocytes1[tree_enterocytes1$tip.label,]
 
+#Transform into list
+data_ent1 <- lapply(seq_along(colnames((enterocytes1))), function(i) enterocytes1[,i,drop=F])
+genes_ent1 <- unlist(lapply(data_ent1, function(x) colnames(x)))
 
+#Intraspecific variation from foregut bulk RNAseq
+a1 <- a #value inferred from hyperbolic fit
+c1 <- c #value inferred from hyperbolic fit
+SE_fitted1 <- a1 / (colMeans(enterocytes1) + c1)
+
+#Intraspecific variation from scRNAseq enterocytes 1 pseudobulk data 
+a2 <- a #value inferred from hyperbolic fit
+c2 <- c #value inferred from hyperbolic fit
+SE_fitted2 <- a2 / (colMeans(enterocytes1) + c2)
+
+#Run fitContinuous
+fit_BM1 <- lapply(seq_along(data_ent1), function(i) fitContinuous(dat=data_ent1[[i]],phy=tree_enterocytes1,SE=SE_fitted1[[i]]*data_ent1[[i]][,1],model='BM',ncores=10))
+fit_OU1 <- lapply(seq_along(data_ent1), function(i) fitContinuous(dat=data_ent1[[i]],phy=tree_enterocytes1,SE=SE_fitted1[[i]]*data_ent1[[i]][,1],model='OU',bounds = list(alpha = c(min = exp(-500), max = 20)),ncores=10))
+fit_BM2 <- lapply(seq_along(data_ent1), function(i) fitContinuous(dat=data_ent1[[i]],phy=tree_enterocytes1,SE=SE_fitted2[[i]]*data_ent1[[i]][,1],model='BM',ncores=10))
+fit_OU2 <- lapply(seq_along(data_ent1), function(i) fitContinuous(dat=data_ent1[[i]],phy=tree_enterocytes1,SE=SE_fitted2[[i]]*data_ent1[[i]][,1],model='OU',bounds = list(alpha = c(min = exp(-500), max = 20)),ncores=10))
+
+#Compare models
+type <- c('bulRNA','scRNA')
+fit_BM <- list(fit_BM1, fit_BM2)
+fit_OU <- list(fit_OU1, fit_OU2)
+
+aicc_bm <- lapply(fit_BM, function(x) unlist(lapply(x, function(y) y$opt$aicc)))
+rate_bm <- lapply(fit_BM, function(x) unlist(lapply(x, function(y) y$opt$sigsq)))
+aicc_ou <- lapply(fit_OU, function(x) unlist(lapply(x, function(y) y$opt$aicc)))
+rate_ou <- lapply(fit_OU, function(x) unlist(lapply(x, function(y) y$opt$sigsq)))
+alpha_ou <- lapply(fit_OU, function(x) unlist(lapply(x, function(y) y$opt$alpha)))
+
+#Summary table of AICs and model parameters
+aic_data <- lapply(seq_along(aicc_bm), function(i) data.frame(geneID = genes_ent1, BM = aicc_bm[[i]] , OU = aicc_ou[[i]],
+                                                              rate_BM = rate_bm[[i]], rate_OU = rate_ou[[i]],alpha = alpha_ou[[i]],type = type[[i]]))
+aic_data_all <- do.call('rbind',aic_data)
+aic_data_all$best <- ifelse(aic_data_all$BM <= aic_data_all$OU, "BM", "OU")
+
+#Introduce delta AIC
+aic_data_all$delta <- aic_data_all$BM - aic_data_all$OU
+aic_data_all$best2 <- 'NA'
+aic_data_all[aic_data_all$delta>2,]$best2 <- 'OU' 
+aic_data_all[aic_data_all$delta<(-2),]$best2 <- 'BM' 
+
+#Save the comparative table 
+saveRDS(aic_data_all,'XXX/aic.rds') 
