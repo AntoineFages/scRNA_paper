@@ -11,6 +11,8 @@ library(plyr)
 library(pracma)
 library(dplyr)
 library(tidyr)
+library(compositions)
+library(zCompositions) 
 
 ##### Read input files #####
 #Custom PCA script and script to plot relative cell abundances
@@ -59,8 +61,22 @@ tree = ape::drop.tip(phy=tree, tip=exclude, root.edge = F, rooted = is.rooted(tr
 #Adapt ecological predictor table
 ecological_predictors <- ecological_predictors[match(tree$tip.label, ecological_predictors$species),]
 
+#Transformation into centered log-ratios
+df <- ecological_predictors[, c(21:29)]
+clr_comps <- clr(acomp(df))
+ilr_comps <- ilr(acomp(df))
+df_comps <- data.frame(species = rownames(df), clr_comps)
+
+#Logit transformation of relative abundance of absorptive cells
+absorptive <- rowSums(df[, c(1:4)])
+logit_abs <- log2(absorptive / (1 - absorptive))
+data_group <- data.frame(species = rownames(df), logit_abs)
+colnames(data_group) <- c('species','absRatio')
+
 #Prepare data for pGLS
-caper.data <- comparative.data(phy = tree, data = ecological_predictors, names.col = species)
+ecological_predictors_clr <- ecological_predictors[,1:19]
+ecological_predictors_clr <- cbind(ecological_predictors_clr,data_group[,c(2),drop=F],df_comps[,c(2:10)])
+caper.data.clr <- comparative.data(phy = tree,data =ecological_predictors_clr,names.col = species)
 name_predictors <- c('d15N','d13C','oral_PC1','LPJ_PC2','normalised_gut_length','diet_ecology_vector')
 number_predictors <- c(a,b,c,d,e,f) #a, b, c, d, e, and f correspond to the column numbers of the predictors in name_predictors
 name_tests <- c('epiRatio','enterocytes_1','enterocytes_2','LREs','BEST4_cells','proliferating_secretory_cells','goblet_cells','tuft_cells','enteroendocrine_cells','epithelial_DCs')
@@ -86,14 +102,23 @@ function_pgls_lambda <- function(Data,i,j) {
 }
 
 #Summaries for linear model, pGLS under BM and pGLS with Pagel's lambda
-sum_lm <- lapply(number_tests, function(x) lapply(number_predictors, function(y) summary(lm(ecological_predictors[,x] ~ ecological_predictors[,y]))))
-sum_bm <- lapply(number_tests, function(x)  lapply(number_predictors, function(y) function_pgls_bm(ecological_predictors,x,y)))
-sum_lambda <- lapply(number_tests, function(x)  lapply(number_predictors, function(y) function_pgls_lambda(ecological_predictors,x,y)))
+sum_lm <- lapply(number_tests, function(x) lapply(number_predictors, function(y) summary(lm(ecological_predictors_clr[,x] ~ ecological_predictors_clr[,y]))))
+sum_bm <- lapply(number_tests, function(x)  lapply(number_predictors, function(y) function_pgls_bm(ecological_predictors_clr,x,y)))
+sum_lambda <- lapply(number_tests, function(x)  lapply(number_predictors, function(y) function_pgls_lambda(ecological_predictors_clr,x,y)))
 
+#FDR adjusted P-values - Pagel's lambda
+pval <- lapply(sum_lambda, function(x) unlist(lapply(x, function(y) y$coefficients[2,4])))
+pval_adj <- lapply(pval, function(x) p.adjust(x,method='fdr'))
+sum_lambda_adj <- lapply(seq_along(sum_lambda),function(i) {
+  lapply(seq_along(sum_lambda[[i]]), function(j) {
+    sum_lambda[[i]][[j]]$coefficients[2,4] <- pval_adj[[i]][[j]]
+    return(sum_lambda[[i]][[j]])
+    })
+})
 
 ##### Summary Dot Plot #####
 rsquare <- lapply(sum_lambda, function(x) unlist(lapply(x, function(y) y$r.squared)))
-pval <- lapply(sum_lambda, function(x) unlist(lapply(x, function(y) y$coefficients[2,4])))
+pval <- lapply(sum_lambda_adj, function(x) unlist(lapply(x, function(y) y$coefficients[2,4])))
 slope <- lapply(sum_lambda, function(x) unlist(lapply(x, function(y) y$coefficients[2,1])))
 delta <- c(abs(max(ecological_predictors$d15N) - min(ecological_predictors$d15N)),abs(max(ecological_predictors$d13C) - min(ecological_predictors$d13C)),
           abs(max(ecological_predictors$oral_PC1) - min(ecological_predictors$oral_PC1)), abs(max(ecological_predictors$LPJ_PC2) - min(ecological_predictors$LPJ_PC2)),
@@ -114,8 +139,8 @@ df[df$slope > 0 & df$pval<0.05,]$sig <- 'positive'
 df$orientation <- rad2deg(atan(df$slope)*df$delta)
 df <- df %>%
   mutate(
-    x_start = as.numeric(celltype) - (rsquare/2 * cos(orientation * pi / 180)),
-    x_end = as.numeric(celltype) + (rsquare/2 * cos(orientation * pi / 180)),
+    x_start = as.numeric(celltype) - abs((rsquare/2 * cos(orientation * pi / 180))),
+    x_end = as.numeric(celltype) + abs((rsquare/2 * cos(orientation * pi / 180))),
     y_start = as.numeric(predictor) - (rsquare/2 * sin(orientation * pi / 180)),
     y_end = as.numeric(predictor) + (rsquare/2 * sin(orientation * pi / 180))
   )
