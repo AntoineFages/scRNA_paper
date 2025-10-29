@@ -8,7 +8,7 @@ library(tibble)
 library(BayesPrism)
 
 ##### Prepare bulkRNA input data #####
-Matrix <- as.matrix(read.csv('Matrix.txt',sep="\t",row.names="gene"))
+Matrix <- as.matrix(read.csv('Matrix.txt',sep="\t",row.names="gene"))  #Matrix of counts from bulk RNAseq
 Matrix <- head(Matrix,-5)
 
 #Create one matrix per species
