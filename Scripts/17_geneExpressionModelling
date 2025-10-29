@@ -1,2 +1,7 @@
 #!/usr/bin/env Rscript
 #Script 17. R script for modelling gene expression evolution
+
+##### Prepare foregut bulk RNAseq - parts 1 and 2 #####
+Matrix <- as.matrix(read.csv('Matrix.txt',sep="\t",row.names="gene")) #Matrix of counts from bulk RNAseq
+Matrix <- head(Matrix,-5)
+
