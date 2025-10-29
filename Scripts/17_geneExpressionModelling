@@ -1,6 +1,9 @@
 #!/usr/bin/env Rscript
 #Script 17. R script for modelling gene expression evolution
+
 library(scuttle)
+library(dplyr)
+library(reshape2)
 
 ##### Prepare foregut bulk RNAseq - parts 1 and 2 #####
 Matrix <- as.matrix(read.csv('Matrix_bulkRNAseq.txt',sep="\t",row.names="gene")) #Matrix of counts from bulk RNAseq
@@ -11,14 +14,43 @@ Coldata <- read.table('coldata_bulkRNAseq.txt',sep='\t') #Coldata table from bul
 Matrix_Foregut <- Matrix[,rownames(Coldata[Coldata$part %in% c(1,2),])]
 Matrix_Foregut <- Matrix_Foregut[rowSums(Matrix_Foregut>5)>=2,]
 
-cpm_pilot <- calculateCPM(FG_pilot)
+cpm_Foregut <- calculateCPM(Matrix_Foregut)
+cpm_Foregut <- log2(cpm_Foregut+1)
+Coldata <- Coldata[Coldata$part %in% c(1,2),]
+Coldata$specimen <- rownames(Coldata)
 
-#Because we do the tests using the log transform, we need to log transform here as well:
-tpm_pilot <- log2(cpm_pilot+1)
-coldata_pilot <- coldata_pilot[coldata_pilot$part %in% c(1,2),]
-coldata_pilot$specimen <- rownames(coldata_pilot)
+#Function to calculate intragroup (intraspecific) variation
+intragroup_function <- function(count_matrix,coldata) {
+  gene_mat <- count_matrix
+  gene_long <- melt(as.matrix(gene_mat))
+  colnames(gene_long) <- c("gene", "specimen", "expression")
+  gene_long <- merge(gene_long, coldata, by = "specimen")
+  intragroup_variation <- gene_long %>%
+    group_by(gene, species) %>%
+    summarise(
+      Variance = var(expression, na.rm = TRUE),
+      SD = sd(expression, na.rm = TRUE),
+      mean = mean(expression,na.rm=TRUE),
+      .groups = 'drop'
+    )
+  return(intragroup_variation)
+}
 
-intragroup_pilot <- intragroup_function(tpm_pilot,coldata_pilot)
-intragroup_pilot_per_gene <- intragroup_pilot %>% group_by(gene) %>% summarise(mean_SD = mean(SD, na.rm = TRUE),
+intragroup_variation <- intragroup_function(cpm_Foregut,Coldata)
+intragroup_variation_per_gene <- intragroup_variation %>% group_by(gene) %>% summarise(mean_SD = mean(SD, na.rm = TRUE),
                                                                                mean_mean = mean(mean, na.rm = TRUE),
                                                                                                  .groups='drop')
+
+intragroup_variation_per_gene$RSD <- intragroup_variation_per_gene$mean_SD/intragroup_variation_per_gene$mean_mean
+intragroup_variation_per_gene$RSE <- intragroup_variation_per_gene$RSD/sqrt(2)
+intragroup_variation_per_gene$tissue <- 'Foregut bulkRNAseq'
+
+#Check fit of different functions on RSE data
+df <- intragroup_variation_per_gene
+model_power <- nls(RSE ~ a * mean_mean^b, data = df, start = list(a = 1, b = -0.5))
+model_exp <- nls(RSE ~ a * exp(-b * mean_mean), data = df, start = list(a = 1, b = 0.1))
+model_hyper <- nls(RSE ~ a / (mean_mean + c), data = df, start = list(a = 1, c = 1))
+AIC(model_power, model_exp, model_hyper)
+
+
+
