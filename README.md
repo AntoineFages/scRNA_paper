@@ -24,7 +24,7 @@ Scripts 11, 12, 13
 Scripts 14, 15, 16
 
 ### Characterisation of ecologically relevant genes in enterocytes 1
-Scripts 17, 18
+Scripts 17, 18, 19
 
 **Necessary programs, databases and libraries to run scripts:**
 Cell Ranger v5.0 (10X Genomics), 
