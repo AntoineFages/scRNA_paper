@@ -1,9 +1,24 @@
 #!/usr/bin/env Rscript
 #Script 17. R script for modelling gene expression evolution
+library(scuttle)
 
 ##### Prepare foregut bulk RNAseq - parts 1 and 2 #####
 Matrix <- as.matrix(read.csv('Matrix_bulkRNAseq.txt',sep="\t",row.names="gene")) #Matrix of counts from bulk RNAseq
 Matrix <- head(Matrix,-5)
-
 Coldata <- read.table('coldata_bulkRNAseq.txt',sep='\t') #Coldata table from bulk RNAseq
-Matrix_foregut <- Matrix[
+
+#Select parts 1 and 2, remove genes with very low expression
+Matrix_Foregut <- Matrix[,rownames(Coldata[Coldata$part %in% c(1,2),])]
+Matrix_Foregut <- Matrix_Foregut[rowSums(Matrix_Foregut>5)>=2,]
+
+cpm_pilot <- calculateCPM(FG_pilot)
+
+#Because we do the tests using the log transform, we need to log transform here as well:
+tpm_pilot <- log2(cpm_pilot+1)
+coldata_pilot <- coldata_pilot[coldata_pilot$part %in% c(1,2),]
+coldata_pilot$specimen <- rownames(coldata_pilot)
+
+intragroup_pilot <- intragroup_function(tpm_pilot,coldata_pilot)
+intragroup_pilot_per_gene <- intragroup_pilot %>% group_by(gene) %>% summarise(mean_SD = mean(SD, na.rm = TRUE),
+                                                                               mean_mean = mean(mean, na.rm = TRUE),
+                                                                                                 .groups='drop')
