@@ -6,7 +6,9 @@ library(scibet)
 library(dplyr)
 library(tibble)
 library(phytools)
+library(ape)
 library(ggplot2)
+library(varhandle)
 
 ##### input data #####
 path_to_output_of_integration <- 'XXX' #path to put the output of integration
@@ -80,8 +82,17 @@ saveRDS(dNdS,paste0(path_to_output_of_transcriptome_characterisation,'dNdS.rds')
 
 
 ##### statistical support #####
+#Define cell populations and cell type categories to be compared statistically
+aux <- my.se@meta.data[,c(19,20)] %>% distinct(CellGroups,CellTypes)
+aux$CellGroups <- unfactor(aux$CellGroups)
+aux$CellTypes <- unfactor(aux$CellTypes)
+cat_CellGroups <- aux$CellGroups
+cat_CellTypes <- aux$CellTypes
+names(cat_CellTypes) <- cat_CellGroups
+names(cat_CellGroups) <- cat_CellTypes
 
-function_t_test_CellType <- function(metric,title) {
+#Function for  phylogenetic paired t-test
+function_t_test_CellType <- function(metric,title,group) {
   metric<-lapply(seq_along(metric), function(i) {
     metric[[i]]$species <- species[[i]]
     return(metric[[i]])
@@ -90,14 +101,12 @@ function_t_test_CellType <- function(metric,title) {
   metric_all <- do.call('rbind',metric)
   metric_all$weightAve <- as.numeric(metric_all$weightAve)
 
-  metric_all_all_summary <- metric_all_all %>% group_by(celltype,species) %>%summarise(mean=mean(weightAve))
-  Tau_NoLog_all_summary$celltype <- factor(Tau_NoLog_all_summary$celltype,levels=unique(cat_CellTypes))
-  print(head(Tau_NoLog_all_summary))
+  metric_all_summary <- metric_all %>% group_by(celltype,species) %>%summarise(mean=mean(weightAve))
+  metric_all_summary$celltype <- factor(metric_all_summary$celltype,levels=unique(cat_CellTypes))
+  print(head(metric_all_summary))
   
-  library(phytools)
-  library(ape)
-  tree_raw<-read.tree("/scicore/home/salzburg/fages0000/scRNA/Seurat/scripts/integration/b1.tre")
-  exclude <- tree_raw$tip.label[! tree_raw$tip.label %in% species]
+  tree <- readRDS(paste0(path_to_output_of_integration,'tree_byCellType.rds'))
+  exclude <- tree$tip.label[! tree$tip.label %in% species]
   tree <- ape::drop.tip(phy=tree_raw, tip=exclude, root.edge = F, rooted = is.rooted(tree_raw))
   
   create_vector <- function(ct) {
