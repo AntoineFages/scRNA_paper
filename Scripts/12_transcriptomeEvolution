@@ -9,6 +9,9 @@ library(phytools)
 library(ape)
 library(ggplot2)
 library(varhandle)
+library(pheatmap)
+library(reshape2)
+library(gridExtra)
 
 ##### input data #####
 path_to_output_of_integration <- 'XXX' #path to put the output of integration
@@ -82,17 +85,8 @@ saveRDS(dNdS,paste0(path_to_output_of_transcriptome_characterisation,'dNdS.rds')
 
 
 ##### statistical support #####
-#Define cell populations and cell type categories to be compared statistically
-aux <- my.se@meta.data[,c(19,20)] %>% distinct(CellGroups,CellTypes)
-aux$CellGroups <- unfactor(aux$CellGroups)
-aux$CellTypes <- unfactor(aux$CellTypes)
-cat_CellGroups <- aux$CellGroups
-cat_CellTypes <- aux$CellTypes
-names(cat_CellTypes) <- cat_CellGroups
-names(cat_CellGroups) <- cat_CellTypes
-
 #Function for  phylogenetic paired t-test
-function_t_test_CellType <- function(metric,title,group) {
+function_t_test_CellType <- function(metric,title) {
   metric<-lapply(seq_along(metric), function(i) {
     metric[[i]]$species <- species[[i]]
     return(metric[[i]])
@@ -102,15 +96,15 @@ function_t_test_CellType <- function(metric,title,group) {
   metric_all$weightAve <- as.numeric(metric_all$weightAve)
 
   metric_all_summary <- metric_all %>% group_by(celltype,species) %>%summarise(mean=mean(weightAve))
-  metric_all_summary$celltype <- factor(metric_all_summary$celltype,levels=unique(cat_CellTypes))
-  print(head(metric_all_summary))
-  
-  tree <- readRDS(paste0(path_to_output_of_integration,'tree_byCellType.rds'))
-  exclude <- tree$tip.label[! tree$tip.label %in% species]
-  tree <- ape::drop.tip(phy=tree_raw, tip=exclude, root.edge = F, rooted = is.rooted(tree_raw))
-  
+  metric_all_summary$celltype <- factor(metric_all_summary$celltype,levels=levels(my.se$CellTypes))
+
+  #Input time-calibrated species tree
+  tree<-read.tree('XXX') #phylogenetic tree from Ronco et al. (2021)
+  exclude = tree$tip.label[! tree$tip.label %in% species]
+  tree = ape::drop.tip(phy=tree, tip=exclude, root.edge = F, rooted = is.rooted(tree))
+
   create_vector <- function(ct) {
-    aux <- as.data.frame(na.omit(Tau_NoLog_all_summary[Tau_NoLog_all_summary$celltype==ct,]))
+    aux <- as.data.frame(na.omit(metric_all_summary[metric_all_summary$celltype==ct,]))
     exclude_aux <- tree$tip.label[!(tree$tip.label %in% aux$species)]
     tree_aux <- ape::drop.tip(phy=tree, tip=exclude_aux, root.edge = F, rooted = is.rooted(tree))
     aux <- aux[match(tree_aux$tip.label,aux$species),]
@@ -118,8 +112,7 @@ function_t_test_CellType <- function(metric,title,group) {
     return(aux)
   }
   
-  celltypes <- levels(unique(Tau_NoLog_all_summary$celltype))[1:24]
-  print(celltypes)
+  celltypes <- levels(unique(metric_all_summary$celltype))[1:24]
   
   phylopaired <- lapply(celltypes, function(x) unlist(lapply(celltypes, function(y) {
     if (x != y) {
@@ -133,38 +126,29 @@ function_t_test_CellType <- function(metric,title,group) {
       return(phyl.pairedttest(tree_X_Y,X[,3,drop=F],Y[,3,drop=F])$P.dbar)
     } else {return(1)}})))
   
-  print(phylopaired)
   matrix_phylopaired <- do.call('rbind',phylopaired)
-  
   colnames(matrix_phylopaired) <- celltypes
   rownames(matrix_phylopaired) <- celltypes
   
-  means <- tapply(Tau_NoLog_all_summary$mean, Tau_NoLog_all_summary$celltype, mean)
+  means <- tapply(metric_all_summary$mean, metric_all_summary$celltype, mean)
   
-  # Expand to pairwise differences
+  #Expand to pairwise differences
   diff_mat <- outer(means, means, "-")  # matrix[i,j] = mean(i) - mean(j)
-  print(diff_mat)
-  
-  library(pheatmap)
-  #pheatmap(-log10(matrix_phylopaired),cluster_rows = T,cluster_cols = T)
-  
+ 
   #Keep uper triangle
   matrix_phylopaired[lower.tri(matrix_phylopaired, diag = TRUE)] <- NA
   diff_mat[lower.tri(diff_mat, diag = TRUE)] <- NA
   
-  
-  # Melt matrix
-  library(reshape2)
+  #Melt matrix
   p_df <- melt(matrix_phylopaired, na.rm = TRUE)
   colnames(p_df) <- c("CellType1", "CellType2", "p_value")
-  
   d_df <- melt(diff_mat)
   colnames(d_df) <- c("CellType1", "CellType2", "diff")
   
-  # Merge
+  #Merge
   plot_df <- merge(p_df, d_df, by = c("CellType1", "CellType2"))
   
-  # Add signed log p-value
+  #Add signed log p-value
   plot_df$signed_log_p <- sign(plot_df$diff) * -log10(plot_df$p_value)
   
   plot_df$log_p <- -log10(plot_df$p_value)
@@ -184,15 +168,12 @@ function_t_test_CellType <- function(metric,title,group) {
     labs(title = "Pairwise significance Heatmap",
          x = "Cell population 1", y = "Cell population 2") + coord_flip() + 
     scale_x_discrete(limits=rev) + ggtitle(title)
-  
-  # ggplot(p_df, aes(x = CellGroup1, y = CellGroup2, fill = signed_log_p)) +
-  #   geom_tile(color = "white") +
-  #   scale_fill_gradient(low = "white", high = "red", name = "-log10(p)") +
-  #   geom_text(aes(label = signif), size = 4, color = "black") +
-  #   theme_minimal() +
-  #   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-  #   labs(title = "Pairwise Significance Heatmap", x = "Cell Group", y = "Cell Group")
 }
 
+p1 <- function_t_test_CellType(TAI_NoLog,'TAI') 
+p2 <- function_t_test_CellType(Tau_NoLog,'Tau') 
+p3 <- function_t_test_CellType(Ppi_NoLog,'PPI')
+p4 <- function_t_test_CellType(dNdS_NoLog,'dNdS') 
 
+grid.arrange(p1,p2,p3,p4,ncol=2)
 
