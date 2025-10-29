@@ -1,5 +1,5 @@
 #!/usr/bin/env Rscript
-#Script 18. R script for modelling evolution of gene expression of ecologically relevant genes
+#Script 19. R script for modelling evolution of gene expression of ecologically relevant genes
 
 library(Seurat)
 library(dplyr)
