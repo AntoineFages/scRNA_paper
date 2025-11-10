@@ -7,6 +7,7 @@ library(reshape2)
 library(phytools)
 library(ape)
 library(ggplot2)
+library(OUwie)
 
 ##### Foregut bulk RNAseq #####
 Matrix <- as.matrix(read.csv('Matrix_bulkRNAseq.txt',sep="\t",row.names="gene")) #Matrix of counts from bulk RNAseq
@@ -146,3 +147,20 @@ aic_data_all[aic_data_all$delta<(-2),]$best2 <- 'BM'
 
 #Save the comparative table 
 saveRDS(aic_data_all,'XXX/aic.rds') 
+
+##### Compare 1-optimum OU and 2-optima OU #####
+#Paint tree to have 2 regimes
+tree2 <- paintSubTree(tree_enterocytes1, node=XX, state="group_2", anc.state="group_1",stem=TRUE) #XX has to be replaced by the node indicating the second evolutionary regime
+
+data <- lapply(data_ent1, function(x) {
+  data.frame(species=names(data_ent1[[i]]),
+             regime = c(rep('A',XX),rep('B',YY)), #XX and YY are the number of tips following regimes A and B, respectively
+             gene=data_ent1[[i]],
+             se = SE_fitted1[[i]] * data_ent1[[i]][,1])
+  })
+
+fit.OU1 <- lapply(data, function(x) OUwie(tree2, x, model = "OU1", mserr = 'known', simmap.tree = TRUE))
+fit.OUM <- lapply(data, function(x) OUwie(tree2, x, model = "OUM", mserr = 'known', simmap.tree = TRUE))
+
+#These fits can then be compared gene by gene
+
