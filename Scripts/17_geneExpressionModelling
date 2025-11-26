@@ -150,7 +150,7 @@ saveRDS(aic_data_all,'XXX/aic.rds')
 
 ##### Compare 1-optimum OU and 2-optima OU #####
 #Paint tree to have 2 regimes
-tree2 <- paintSubTree(tree_enterocytes1, node=XX, state="group_2", anc.state="group_1",stem=TRUE) #XX has to be replaced by the node indicating the second evolutionary regime
+tree2 <- paintSubTree(tree_enterocytes1, node=XX, state="group_2", anc.state="group_1",stem=TRUE) #XX has to be replaced by the node indicating the second evolutionary regime (here, associated with herbivory)
 
 data <- lapply(data_ent1, function(x) {
   data.frame(species=names(data_ent1[[i]]),
